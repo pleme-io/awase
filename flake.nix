@@ -1,19 +1,14 @@
 {
-  description = "Kukan (空間) — global hotkey abstraction";
+  description = "Kukan (空間) — global hotkey abstraction: key types, parser, and platform-agnostic manager trait";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
-    substrate = {
-      url = "github:pleme-io/substrate";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs =
     {
       self,
       nixpkgs,
-      substrate,
       ...
     }:
     let
