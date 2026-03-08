@@ -39,7 +39,7 @@ rec {
   #
 
   rootCrate = rec {
-    packageId = "kukan";
+    packageId = "awase";
 
     # Use this attribute to refer to the derivation building your root crate package.
     # You can override the features with rootCrate.build.override { features = [ "default" "feature1" ... ]; }.
@@ -55,10 +55,10 @@ rec {
   # You can override the features with
   # workspaceMembers."${crateName}".build.override { features = [ "default" "feature1" ... ]; }.
   workspaceMembers = {
-    "kukan" = rec {
-      packageId = "kukan";
+    "awase" = rec {
+      packageId = "awase";
       build = internal.buildRustCrateWithFeatures {
-        packageId = "kukan";
+        packageId = "awase";
       };
 
       # Debug support which might change between releases.
@@ -93,8 +93,8 @@ rec {
     #   inject test dependencies into the build
 
     crates = {
-      "kukan" = rec {
-        crateName = "kukan";
+      "awase" = rec {
+        crateName = "awase";
         version = "0.1.0";
         edition = "2024";
         src = lib.cleanSourceWith { filter = sourceFilter;  src = ./.; };

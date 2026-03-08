@@ -1,4 +1,4 @@
-//! Kukan (空間) --- global hotkey abstraction.
+//! Awase (合わせ) --- global hotkey abstraction.
 //!
 //! Provides platform-agnostic types and traits for global hotkey
 //! registration. macOS and Linux backends can be added as separate
@@ -7,7 +7,7 @@
 //! # Quick Start
 //!
 //! ```rust
-//! use kukan::{Hotkey, Modifiers, Key, NoopManager, HotkeyManager};
+//! use awase::{Hotkey, Modifiers, Key, NoopManager, HotkeyManager};
 //!
 //! let hk = Hotkey::parse("cmd+space").unwrap();
 //! assert_eq!(hk.modifiers, Modifiers::CMD);
@@ -22,6 +22,6 @@ mod error;
 mod hotkey;
 mod manager;
 
-pub use error::KukanError;
+pub use error::AwaseError;
 pub use hotkey::{Hotkey, Key, Modifiers};
 pub use manager::{HotkeyManager, NoopManager};

@@ -2,7 +2,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::KukanError;
+use crate::AwaseError;
 
 /// Modifier key flags. Uses a bitmask internally.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -205,11 +205,11 @@ impl Hotkey {
     /// Parts are separated by `+` and are case-insensitive. Modifier
     /// names: `cmd`, `ctrl`, `alt`, `shift`. The last non-modifier
     /// segment is treated as the key.
-    pub fn parse(s: &str) -> Result<Self, KukanError> {
+    pub fn parse(s: &str) -> Result<Self, AwaseError> {
         let parts: Vec<&str> = s.split('+').map(str::trim).collect();
 
         if parts.is_empty() {
-            return Err(KukanError::InvalidHotkey(
+            return Err(AwaseError::InvalidHotkey(
                 "empty hotkey string".to_string(),
             ));
         }
@@ -225,7 +225,7 @@ impl Hotkey {
                 "shift" => modifiers |= Modifiers::SHIFT,
                 _ => {
                     if key_part.is_some() {
-                        return Err(KukanError::InvalidHotkey(format!(
+                        return Err(AwaseError::InvalidHotkey(format!(
                             "multiple keys in hotkey: {s}"
                         )));
                     }
@@ -235,13 +235,13 @@ impl Hotkey {
         }
 
         let Some(key_str) = key_part else {
-            return Err(KukanError::InvalidHotkey(format!(
+            return Err(AwaseError::InvalidHotkey(format!(
                 "no key found in hotkey: {s}"
             )));
         };
 
         let key = Key::parse(key_str).ok_or_else(|| {
-            KukanError::InvalidHotkey(format!("unknown key: {key_str}"))
+            AwaseError::InvalidHotkey(format!("unknown key: {key_str}"))
         })?;
 
         Ok(Self { modifiers, key })
@@ -298,7 +298,7 @@ mod tests {
     fn parse_invalid_returns_error() {
         let result = Hotkey::parse("invalid");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), KukanError::InvalidHotkey(_)));
+        assert!(matches!(result.unwrap_err(), AwaseError::InvalidHotkey(_)));
     }
 
     #[test]

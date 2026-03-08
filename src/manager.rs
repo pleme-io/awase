@@ -1,5 +1,5 @@
 use crate::hotkey::Hotkey;
-use crate::KukanError;
+use crate::AwaseError;
 
 /// Trait for platform-specific hotkey registration.
 ///
@@ -8,11 +8,11 @@ use crate::KukanError;
 pub trait HotkeyManager: Send + Sync {
     /// Register a global hotkey with the given ID.
     ///
-    /// Returns `Err(KukanError::AlreadyRegistered)` if the ID is in use.
-    fn register(&mut self, id: u32, hotkey: Hotkey) -> Result<(), KukanError>;
+    /// Returns `Err(AwaseError::AlreadyRegistered)` if the ID is in use.
+    fn register(&mut self, id: u32, hotkey: Hotkey) -> Result<(), AwaseError>;
 
     /// Unregister a previously registered hotkey by ID.
-    fn unregister(&mut self, id: u32) -> Result<(), KukanError>;
+    fn unregister(&mut self, id: u32) -> Result<(), AwaseError>;
 }
 
 /// A no-op hotkey manager for testing and platforms without hotkey support.
@@ -31,16 +31,16 @@ impl NoopManager {
 }
 
 impl HotkeyManager for NoopManager {
-    fn register(&mut self, id: u32, _hotkey: Hotkey) -> Result<(), KukanError> {
+    fn register(&mut self, id: u32, _hotkey: Hotkey) -> Result<(), AwaseError> {
         if self.registered.contains(&id) {
-            return Err(KukanError::AlreadyRegistered(id));
+            return Err(AwaseError::AlreadyRegistered(id));
         }
         self.registered.insert(id);
         tracing::debug!(id, "noop: registered hotkey");
         Ok(())
     }
 
-    fn unregister(&mut self, id: u32) -> Result<(), KukanError> {
+    fn unregister(&mut self, id: u32) -> Result<(), AwaseError> {
         self.registered.remove(&id);
         tracing::debug!(id, "noop: unregistered hotkey");
         Ok(())
@@ -69,7 +69,7 @@ mod tests {
         manager.register(1, hk).unwrap();
         let result = manager.register(1, hk);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), KukanError::AlreadyRegistered(1)));
+        assert!(matches!(result.unwrap_err(), AwaseError::AlreadyRegistered(1)));
     }
 
     #[test]

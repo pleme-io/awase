@@ -1,6 +1,6 @@
 /// Errors from the hotkey system.
 #[derive(Debug, thiserror::Error)]
-pub enum KukanError {
+pub enum AwaseError {
     /// The hotkey string could not be parsed.
     #[error("invalid hotkey: {0}")]
     InvalidHotkey(String),

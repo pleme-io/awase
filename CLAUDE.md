@@ -1,4 +1,4 @@
-# Kukan (空間) -- Global Hotkey Abstraction
+# Awase (合わせ) -- Global Hotkey Abstraction
 
 ## Build & Test
 
@@ -18,7 +18,7 @@ Platform-agnostic hotkey types and traits. Provides the common vocabulary for ho
 | `src/lib.rs` | Re-exports |
 | `src/hotkey.rs` | `Hotkey`, `Key`, `Modifiers` -- parsing and display (14 tests) |
 | `src/manager.rs` | `HotkeyManager` trait + `NoopManager` stub (4 tests) |
-| `src/error.rs` | `KukanError` -- invalid/duplicate/platform errors |
+| `src/error.rs` | `AwaseError` -- invalid/duplicate/platform errors |
 
 ### Key Types
 
@@ -27,7 +27,7 @@ Platform-agnostic hotkey types and traits. Provides the common vocabulary for ho
 - **`Key`** -- A-Z, 0-9, F1-F12, Space, Return, Escape, Tab, arrows, etc.
 - **`HotkeyManager`** -- `trait { register(id, hotkey), unregister(id) }`
 - **`NoopManager`** -- default stub that tracks IDs without OS interaction
-- **`KukanError`** -- `InvalidHotkey`, `AlreadyRegistered`, `Platform`
+- **`AwaseError`** -- `InvalidHotkey`, `AlreadyRegistered`, `Platform`
 
 ### Parse Format
 
@@ -37,7 +37,7 @@ Aliases: `command`/`super`/`meta` for CMD, `control` for CTRL, `option`/`opt` fo
 ### Usage Pattern
 
 ```rust
-use kukan::{Hotkey, Modifiers, Key, NoopManager, HotkeyManager};
+use awase::{Hotkey, Modifiers, Key, NoopManager, HotkeyManager};
 
 let hk = Hotkey::parse("cmd+space").unwrap();
 assert_eq!(hk.modifiers, Modifiers::CMD);

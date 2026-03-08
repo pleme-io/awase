@@ -1,5 +1,5 @@
 {
-  description = "Kukan (空間) — global hotkey abstraction: key types, parser, and platform-agnostic manager trait";
+  description = "Awase (合わせ) — global hotkey abstraction: key types, parser, and platform-agnostic manager trait";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
@@ -27,7 +27,7 @@
         inherit crate2nix;
       };
       lib = rustLibrary {
-        name = "kukan";
+        name = "awase";
         src = ./.;
       };
     in
@@ -35,7 +35,7 @@
       inherit (lib) packages devShells apps;
 
       overlays.default = final: prev: {
-        kukan = self.packages.${final.system}.default;
+        awase = self.packages.${final.system}.default;
       };
 
       formatter.${system} = pkgs.nixfmt-tree;

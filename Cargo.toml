@@ -1,11 +1,11 @@
 [package]
-name = "kukan"
+name = "awase"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.89.0"
-description = "Kukan (空間) — global hotkey abstraction: key types, parser, and platform-agnostic manager trait"
-homepage = "https://github.com/pleme-io/kukan"
-repository = "https://github.com/pleme-io/kukan"
+description = "Awase (合わせ) — global hotkey abstraction: key types, parser, and platform-agnostic manager trait"
+homepage = "https://github.com/pleme-io/awase"
+repository = "https://github.com/pleme-io/awase"
 readme = "README.md"
 license = "MIT"
 categories = ["gui"]
