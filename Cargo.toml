@@ -1,0 +1,22 @@
+[package]
+name = "kukan"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89.0"
+description = "Kukan (空間) — global hotkey abstraction: key types, parser, and platform-agnostic manager trait"
+homepage = "https://github.com/pleme-io/kukan"
+repository = "https://github.com/pleme-io/kukan"
+readme = "README.md"
+license = "MIT"
+categories = ["gui"]
+keywords = ["hotkey", "keyboard", "shortcut", "keybinding"]
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+tracing = "0.1"
+thiserror = "2"
