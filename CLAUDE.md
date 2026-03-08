@@ -52,4 +52,4 @@ manager.unregister(1).unwrap();
 ## Consumers
 
 - **tobira** -- app launcher hotkey activation
-- **karakuri** -- window manager keyboard shortcuts
+- **ayatsuri** -- window manager keyboard shortcuts
