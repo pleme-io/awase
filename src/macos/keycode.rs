@@ -339,4 +339,107 @@ mod tests {
         assert_eq!(key_to_keycode(Key::Escape), Some(0x35));
         assert_eq!(keycode_to_key(0x04), Some(Key::H));
     }
+
+    // ── Additional keycode tests ────────────────────────────────────
+
+    #[test]
+    fn reverse_roundtrip_all_known_keycodes() {
+        // Every keycode that maps to a key should roundtrip back
+        for code in 0..=0xFF_u16 {
+            if let Some(key) = keycode_to_key(code) {
+                let back = key_to_keycode(key);
+                assert_eq!(
+                    back,
+                    Some(code),
+                    "reverse roundtrip failed: keycode 0x{code:02X} -> {key:?} -> {back:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn all_unmapped_keys() {
+        // These keys should NOT have macOS keycodes
+        let unmapped = [
+            Key::BrightnessUp, Key::BrightnessDown,
+            Key::PlayPause, Key::NextTrack, Key::PreviousTrack,
+            Key::PrintScreen, Key::Pause,
+            Key::NumLock, Key::ScrollLock,
+            Key::MouseLeft, Key::MouseRight, Key::MouseMiddle,
+            Key::MouseButton4, Key::MouseButton5,
+        ];
+        for key in unmapped {
+            assert!(key_to_keycode(key).is_none(), "{key:?} should not have a keycode");
+        }
+    }
+
+    #[test]
+    fn qwerty_home_row_keycodes() {
+        // Verify home row keys have correct ANSI keycodes
+        assert_eq!(key_to_keycode(Key::A), Some(0x00));
+        assert_eq!(key_to_keycode(Key::S), Some(0x01));
+        assert_eq!(key_to_keycode(Key::D), Some(0x02));
+        assert_eq!(key_to_keycode(Key::F), Some(0x03));
+        assert_eq!(key_to_keycode(Key::J), Some(0x26));
+        assert_eq!(key_to_keycode(Key::K), Some(0x28));
+        assert_eq!(key_to_keycode(Key::L), Some(0x25));
+    }
+
+    #[test]
+    fn numpad_keycodes_distinct_from_main() {
+        // Numpad keys should have different keycodes than main number keys
+        for i in 0..=9 {
+            let main_keys = [
+                Key::Num0, Key::Num1, Key::Num2, Key::Num3, Key::Num4,
+                Key::Num5, Key::Num6, Key::Num7, Key::Num8, Key::Num9,
+            ];
+            let numpad_keys = [
+                Key::Numpad0, Key::Numpad1, Key::Numpad2, Key::Numpad3, Key::Numpad4,
+                Key::Numpad5, Key::Numpad6, Key::Numpad7, Key::Numpad8, Key::Numpad9,
+            ];
+            let main_code = key_to_keycode(main_keys[i]).unwrap();
+            let numpad_code = key_to_keycode(numpad_keys[i]).unwrap();
+            assert_ne!(
+                main_code, numpad_code,
+                "Num{i} and Numpad{i} should have different keycodes"
+            );
+        }
+    }
+
+    #[test]
+    fn modifier_only_keycodes_not_mapped() {
+        // macOS modifier-only keycodes should return None
+        // Command: 0x37 (left), 0x36 (right)
+        assert!(keycode_to_key(0x37).is_none());
+        assert!(keycode_to_key(0x36).is_none());
+        // Shift: 0x38 (left), 0x3C (right)
+        assert!(keycode_to_key(0x38).is_none());
+        assert!(keycode_to_key(0x3C).is_none());
+        // Option: 0x3A (left), 0x3D (right)
+        assert!(keycode_to_key(0x3A).is_none());
+        assert!(keycode_to_key(0x3D).is_none());
+        // Control: 0x3B (left), 0x3E (right)
+        assert!(keycode_to_key(0x3B).is_none());
+        assert!(keycode_to_key(0x3E).is_none());
+    }
+
+    #[test]
+    fn function_key_keycodes() {
+        // Verify some well-known function key keycodes
+        assert_eq!(key_to_keycode(Key::F1), Some(0x7A));
+        assert_eq!(key_to_keycode(Key::F12), Some(0x6F));
+        assert_eq!(key_to_keycode(Key::F13), Some(0x69));
+    }
+
+    #[test]
+    fn navigation_keycodes() {
+        assert_eq!(key_to_keycode(Key::Up), Some(0x7E));
+        assert_eq!(key_to_keycode(Key::Down), Some(0x7D));
+        assert_eq!(key_to_keycode(Key::Left), Some(0x7B));
+        assert_eq!(key_to_keycode(Key::Right), Some(0x7C));
+        assert_eq!(key_to_keycode(Key::Home), Some(0x73));
+        assert_eq!(key_to_keycode(Key::End), Some(0x77));
+        assert_eq!(key_to_keycode(Key::PageUp), Some(0x74));
+        assert_eq!(key_to_keycode(Key::PageDown), Some(0x79));
+    }
 }

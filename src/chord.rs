@@ -153,4 +153,118 @@ mod tests {
         let deserialized: KeyChord = serde_json::from_str(&json).unwrap();
         assert_eq!(chord, deserialized);
     }
+
+    // ── Additional chord tests ──────────────────────────────────────
+
+    #[test]
+    fn chord_state_pending_leader_returns_correct_hotkey() {
+        let mut state = ChordState::default();
+        let ldr = Hotkey::new(Modifiers::CMD, Key::Space);
+        state.begin(ldr, 500);
+        assert_eq!(state.pending_leader(), Some(&ldr));
+    }
+
+    #[test]
+    fn chord_state_idle_pending_leader_is_none() {
+        let state = ChordState::Idle;
+        assert!(state.pending_leader().is_none());
+    }
+
+    #[test]
+    fn chord_state_begin_overwrites_previous() {
+        let mut state = ChordState::default();
+        let first = Hotkey::new(Modifiers::CTRL, Key::A);
+        let second = Hotkey::new(Modifiers::CMD, Key::B);
+
+        state.begin(first, 1000);
+        assert_eq!(state.pending_leader(), Some(&first));
+
+        state.begin(second, 500);
+        assert_eq!(state.pending_leader(), Some(&second));
+    }
+
+    #[test]
+    fn chord_state_reset_after_timeout_is_idle() {
+        let mut state = ChordState::default();
+        state.begin(leader(), 0);
+        std::thread::sleep(std::time::Duration::from_millis(1));
+        assert!(state.is_timed_out());
+        state.reset();
+        assert!(!state.is_pending());
+        assert!(!state.is_timed_out());
+    }
+
+    #[test]
+    fn key_chord_equality() {
+        let chord1 = KeyChord {
+            leader: leader(),
+            follower: follower(),
+            timeout_ms: 1000,
+            action: Action::command("a"),
+        };
+        let chord2 = KeyChord {
+            leader: leader(),
+            follower: follower(),
+            timeout_ms: 1000,
+            action: Action::command("a"),
+        };
+        assert_eq!(chord1, chord2);
+    }
+
+    #[test]
+    fn key_chord_inequality_different_action() {
+        let chord1 = KeyChord {
+            leader: leader(),
+            follower: follower(),
+            timeout_ms: 1000,
+            action: Action::command("a"),
+        };
+        let chord2 = KeyChord {
+            leader: leader(),
+            follower: follower(),
+            timeout_ms: 1000,
+            action: Action::command("b"),
+        };
+        assert_ne!(chord1, chord2);
+    }
+
+    #[test]
+    fn key_chord_inequality_different_timeout() {
+        let chord1 = KeyChord {
+            leader: leader(),
+            follower: follower(),
+            timeout_ms: 1000,
+            action: Action::command("a"),
+        };
+        let chord2 = KeyChord {
+            leader: leader(),
+            follower: follower(),
+            timeout_ms: 2000,
+            action: Action::command("a"),
+        };
+        assert_ne!(chord1, chord2);
+    }
+
+    #[test]
+    fn key_chord_with_chain_action_serde() {
+        let chord = KeyChord {
+            leader: leader(),
+            follower: follower(),
+            timeout_ms: 500,
+            action: Action::chain(vec![
+                Action::command("focus_window"),
+                Action::mode_switch("default"),
+            ]),
+        };
+        let json = serde_json::to_string(&chord).unwrap();
+        let deserialized: KeyChord = serde_json::from_str(&json).unwrap();
+        assert_eq!(chord, deserialized);
+    }
+
+    #[test]
+    fn chord_state_large_timeout_not_timed_out() {
+        let mut state = ChordState::default();
+        state.begin(leader(), u32::MAX); // ~49 days
+        assert!(!state.is_timed_out());
+    }
 }

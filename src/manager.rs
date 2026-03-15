@@ -89,4 +89,70 @@ mod tests {
         // Should succeed after unregister
         manager.register(1, hk).unwrap();
     }
+
+    #[test]
+    fn noop_register_multiple_different_ids() {
+        let mut manager = NoopManager::new();
+        let hk = Hotkey::new(Modifiers::CMD, Key::Space);
+
+        manager.register(1, hk).unwrap();
+        manager.register(2, hk).unwrap();
+        manager.register(3, hk).unwrap();
+        // All three should be registered
+        assert!(manager.register(1, hk).is_err());
+        assert!(manager.register(2, hk).is_err());
+        assert!(manager.register(3, hk).is_err());
+    }
+
+    #[test]
+    fn noop_register_same_hotkey_different_ids() {
+        // Different IDs can map to the same hotkey
+        let mut manager = NoopManager::new();
+        let hk = Hotkey::new(Modifiers::CMD, Key::A);
+        manager.register(1, hk).unwrap();
+        manager.register(2, hk).unwrap();
+    }
+
+    #[test]
+    fn noop_register_different_hotkeys_same_id_fails() {
+        let mut manager = NoopManager::new();
+        let hk1 = Hotkey::new(Modifiers::CMD, Key::A);
+        let hk2 = Hotkey::new(Modifiers::CMD, Key::B);
+        manager.register(1, hk1).unwrap();
+        assert!(manager.register(1, hk2).is_err());
+    }
+
+    #[test]
+    fn noop_unregister_multiple_ids() {
+        let mut manager = NoopManager::new();
+        let hk = Hotkey::new(Modifiers::CMD, Key::Space);
+        manager.register(10, hk).unwrap();
+        manager.register(20, hk).unwrap();
+
+        manager.unregister(10).unwrap();
+        // ID 10 should be free now, 20 still taken
+        manager.register(10, hk).unwrap();
+        assert!(manager.register(20, hk).is_err());
+    }
+
+    #[test]
+    fn noop_default_is_empty() {
+        let manager = NoopManager::new();
+        // Default manager should have no registered IDs; verify by
+        // successfully registering ID 0
+        let mut m = manager;
+        m.register(0, Hotkey::new(Modifiers::NONE, Key::A)).unwrap();
+    }
+
+    #[test]
+    fn noop_manager_is_send_sync() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<NoopManager>();
+    }
+
+    #[test]
+    fn hotkey_manager_trait_object_is_send_sync() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<Box<dyn HotkeyManager>>();
+    }
 }

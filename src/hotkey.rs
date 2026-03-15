@@ -906,4 +906,510 @@ mod tests {
         assert!(mods.contains(Modifiers::ALT));
         assert!(!mods.contains(Modifiers::SHIFT));
     }
+
+    // ── Additional hotkey parsing edge cases ────────────────────────
+
+    #[test]
+    fn parse_empty_string_returns_error() {
+        let result = Hotkey::parse("");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            AwaseError::InvalidHotkey(msg) => assert!(msg.contains("empty")),
+            other => panic!("expected InvalidHotkey, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_whitespace_only_returns_error() {
+        let result = Hotkey::parse("   ");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_trims_whitespace() {
+        let hk = Hotkey::parse("  cmd+space  ").unwrap();
+        assert_eq!(hk.modifiers, Modifiers::CMD);
+        assert_eq!(hk.key, Key::Space);
+    }
+
+    #[test]
+    fn parse_whitespace_around_plus() {
+        let hk = Hotkey::parse("cmd + space").unwrap();
+        assert_eq!(hk.modifiers, Modifiers::CMD);
+        assert_eq!(hk.key, Key::Space);
+    }
+
+    #[test]
+    fn parse_single_letter_key_only() {
+        let hk = Hotkey::parse("a").unwrap();
+        assert!(hk.modifiers.is_empty());
+        assert_eq!(hk.key, Key::A);
+    }
+
+    #[test]
+    fn parse_single_digit_key_only() {
+        let hk = Hotkey::parse("5").unwrap();
+        assert!(hk.modifiers.is_empty());
+        assert_eq!(hk.key, Key::Num5);
+    }
+
+    #[test]
+    fn parse_mixed_case_modifiers() {
+        let hk = Hotkey::parse("Cmd+Shift+A").unwrap();
+        assert!(hk.modifiers.contains(Modifiers::CMD));
+        assert!(hk.modifiers.contains(Modifiers::SHIFT));
+        assert_eq!(hk.key, Key::A);
+    }
+
+    #[test]
+    fn parse_modifier_aliases() {
+        // command == cmd
+        let hk = Hotkey::parse("command+a").unwrap();
+        assert!(hk.modifiers.contains(Modifiers::CMD));
+
+        // super == cmd
+        let hk = Hotkey::parse("super+a").unwrap();
+        assert!(hk.modifiers.contains(Modifiers::CMD));
+
+        // meta == cmd
+        let hk = Hotkey::parse("meta+a").unwrap();
+        assert!(hk.modifiers.contains(Modifiers::CMD));
+
+        // control == ctrl
+        let hk = Hotkey::parse("control+a").unwrap();
+        assert!(hk.modifiers.contains(Modifiers::CTRL));
+
+        // option == alt
+        let hk = Hotkey::parse("option+a").unwrap();
+        assert!(hk.modifiers.contains(Modifiers::ALT));
+
+        // opt == alt
+        let hk = Hotkey::parse("opt+a").unwrap();
+        assert!(hk.modifiers.contains(Modifiers::ALT));
+    }
+
+    #[test]
+    fn parse_duplicate_modifier_is_idempotent() {
+        // Specifying the same modifier twice should be the same as once
+        let hk = Hotkey::parse("cmd+cmd+a").unwrap();
+        assert_eq!(hk.modifiers, Modifiers::CMD);
+        assert_eq!(hk.key, Key::A);
+    }
+
+    #[test]
+    fn parse_hyper_is_all_four_modifiers() {
+        let hk = Hotkey::parse("hyper+a").unwrap();
+        let manual = Hotkey::parse("cmd+ctrl+alt+shift+a").unwrap();
+        assert_eq!(hk, manual);
+    }
+
+    #[test]
+    fn parse_unknown_key_error_message_contains_name() {
+        let result = Hotkey::parse("cmd+nonexistent");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            AwaseError::InvalidHotkey(msg) => assert!(msg.contains("nonexistent")),
+            other => panic!("expected InvalidHotkey, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_backspace_aliases() {
+        let hk = Hotkey::parse("backspace").unwrap();
+        assert_eq!(hk.key, Key::Backspace);
+        let hk = Hotkey::parse("bs").unwrap();
+        assert_eq!(hk.key, Key::Backspace);
+    }
+
+    #[test]
+    fn parse_delete_aliases() {
+        let hk = Hotkey::parse("delete").unwrap();
+        assert_eq!(hk.key, Key::Delete);
+        let hk = Hotkey::parse("del").unwrap();
+        assert_eq!(hk.key, Key::Delete);
+    }
+
+    #[test]
+    fn parse_page_up_aliases() {
+        let a = Hotkey::parse("pageup").unwrap();
+        let b = Hotkey::parse("page_up").unwrap();
+        let c = Hotkey::parse("pgup").unwrap();
+        assert_eq!(a, b);
+        assert_eq!(b, c);
+    }
+
+    #[test]
+    fn parse_page_down_aliases() {
+        let a = Hotkey::parse("pagedown").unwrap();
+        let b = Hotkey::parse("page_down").unwrap();
+        let c = Hotkey::parse("pgdn").unwrap();
+        assert_eq!(a, b);
+        assert_eq!(b, c);
+    }
+
+    #[test]
+    fn parse_numpad_kp_aliases() {
+        assert_eq!(Hotkey::parse("kp0").unwrap().key, Key::Numpad0);
+        assert_eq!(Hotkey::parse("kp9").unwrap().key, Key::Numpad9);
+        // "kp+" cannot be parsed in plus-separated format since + is the delimiter.
+        // Use the full name or kp_add alias instead.
+        assert_eq!(Hotkey::parse("kp_add").unwrap().key, Key::NumpadAdd);
+        assert_eq!(Hotkey::parse("kp_subtract").unwrap().key, Key::NumpadSubtract);
+        assert_eq!(Hotkey::parse("kp_multiply").unwrap().key, Key::NumpadMultiply);
+        assert_eq!(Hotkey::parse("kp_divide").unwrap().key, Key::NumpadDivide);
+        assert_eq!(Hotkey::parse("kp_decimal").unwrap().key, Key::NumpadDecimal);
+        assert_eq!(Hotkey::parse("kp_enter").unwrap().key, Key::NumpadEnter);
+    }
+
+    #[test]
+    fn parse_symbol_literals() {
+        // Test parsing keys by their symbol character
+        assert_eq!(Hotkey::parse("cmd+`").unwrap().key, Key::Grave);
+        assert_eq!(Hotkey::parse("cmd+[").unwrap().key, Key::LeftBracket);
+        assert_eq!(Hotkey::parse("cmd+]").unwrap().key, Key::RightBracket);
+        assert_eq!(Hotkey::parse("cmd+;").unwrap().key, Key::Semicolon);
+        assert_eq!(Hotkey::parse("cmd+'").unwrap().key, Key::Quote);
+        assert_eq!(Hotkey::parse("cmd+,").unwrap().key, Key::Comma);
+        assert_eq!(Hotkey::parse("cmd+.").unwrap().key, Key::Period);
+        assert_eq!(Hotkey::parse("cmd+/").unwrap().key, Key::Slash);
+    }
+
+    #[test]
+    fn parse_print_screen_aliases() {
+        let a = Hotkey::parse("printscreen").unwrap();
+        let b = Hotkey::parse("print_screen").unwrap();
+        let c = Hotkey::parse("prtsc").unwrap();
+        assert_eq!(a, b);
+        assert_eq!(b, c);
+    }
+
+    #[test]
+    fn parse_pause_break_alias() {
+        let a = Hotkey::parse("pause").unwrap();
+        let b = Hotkey::parse("break").unwrap();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn parse_brightness_keys() {
+        assert_eq!(Hotkey::parse("brightnessup").unwrap().key, Key::BrightnessUp);
+        assert_eq!(Hotkey::parse("brightness_up").unwrap().key, Key::BrightnessUp);
+        assert_eq!(Hotkey::parse("brightnessdown").unwrap().key, Key::BrightnessDown);
+        assert_eq!(Hotkey::parse("brightness_down").unwrap().key, Key::BrightnessDown);
+    }
+
+    #[test]
+    fn parse_insert_alias() {
+        let a = Hotkey::parse("insert").unwrap();
+        let b = Hotkey::parse("ins").unwrap();
+        assert_eq!(a, b);
+    }
+
+    // ── skhd format additional edge cases ───────────────────────────
+
+    #[test]
+    fn parse_skhd_no_modifier() {
+        // skhd format with empty modifier side: " - escape"
+        // This won't be detected as skhd because " - " requires text on the left.
+        // Instead we test with whitespace on the left
+        let hk = Hotkey::parse("shift - escape").unwrap();
+        assert!(hk.modifiers.contains(Modifiers::SHIFT));
+        assert_eq!(hk.key, Key::Escape);
+    }
+
+    #[test]
+    fn parse_skhd_unknown_key_error() {
+        let result = Hotkey::parse("cmd - nonexistent");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            AwaseError::InvalidHotkey(msg) => assert!(msg.contains("nonexistent")),
+            other => panic!("expected InvalidHotkey, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_skhd_three_modifiers() {
+        let hk = Hotkey::parse("ctrl + alt + shift - k").unwrap();
+        assert!(hk.modifiers.contains(Modifiers::CTRL));
+        assert!(hk.modifiers.contains(Modifiers::ALT));
+        assert!(hk.modifiers.contains(Modifiers::SHIFT));
+        assert_eq!(hk.key, Key::K);
+    }
+
+    #[test]
+    fn parse_skhd_fn_modifier() {
+        let hk = Hotkey::parse("fn - left").unwrap();
+        assert!(hk.modifiers.contains(Modifiers::FN));
+        assert_eq!(hk.key, Key::Left);
+    }
+
+    // ── Display and formatting tests ────────────────────────────────
+
+    #[test]
+    fn display_no_modifiers_key_only() {
+        let hk = Hotkey::new(Modifiers::NONE, Key::F5);
+        assert_eq!(format!("{hk}"), "f5");
+    }
+
+    #[test]
+    fn display_single_modifier() {
+        let hk = Hotkey::new(Modifiers::CTRL, Key::C);
+        assert_eq!(format!("{hk}"), "ctrl+c");
+    }
+
+    #[test]
+    fn display_multiple_modifiers_deterministic_order() {
+        // Modifiers should always display in cmd, ctrl, alt, shift, fn, caps_lock order
+        let hk = Hotkey::new(Modifiers::SHIFT | Modifiers::CMD | Modifiers::ALT, Key::A);
+        assert_eq!(format!("{hk}"), "cmd+alt+shift+a");
+    }
+
+    #[test]
+    fn display_hyper_shows_all_four() {
+        let hk = Hotkey::new(Modifiers::HYPER, Key::Space);
+        assert_eq!(format!("{hk}"), "cmd+ctrl+alt+shift+space");
+    }
+
+    #[test]
+    fn display_fn_modifier() {
+        let hk = Hotkey::new(Modifiers::FN, Key::F5);
+        assert_eq!(format!("{hk}"), "fn+f5");
+    }
+
+    #[test]
+    fn display_caps_lock_modifier() {
+        let hk = Hotkey::new(Modifiers::CAPS_LOCK, Key::A);
+        assert_eq!(format!("{hk}"), "caps_lock+a");
+    }
+
+    #[test]
+    fn modifiers_display_empty() {
+        let mods = Modifiers::NONE;
+        assert_eq!(format!("{mods}"), "");
+    }
+
+    #[test]
+    fn display_roundtrip_all_modifiers_combined() {
+        let mods = Modifiers::CMD | Modifiers::CTRL | Modifiers::ALT | Modifiers::SHIFT | Modifiers::FN;
+        let hk = Hotkey::new(mods, Key::A);
+        let displayed = hk.display();
+        let reparsed = Hotkey::parse(&displayed).unwrap();
+        assert_eq!(hk, reparsed);
+    }
+
+    #[test]
+    fn display_roundtrip_caps_lock_modifier() {
+        let hk = Hotkey::new(Modifiers::CAPS_LOCK, Key::A);
+        let displayed = hk.display();
+        let reparsed = Hotkey::parse(&displayed).unwrap();
+        assert_eq!(hk, reparsed);
+    }
+
+    // ── Key Display roundtrip ───────────────────────────────────────
+
+    #[test]
+    fn key_display_roundtrip_all_keys() {
+        // Every Key variant's Display should parse back to the same key
+        let all_keys = [
+            Key::A, Key::B, Key::C, Key::D, Key::E, Key::F, Key::G, Key::H,
+            Key::I, Key::J, Key::K, Key::L, Key::M, Key::N, Key::O, Key::P,
+            Key::Q, Key::R, Key::S, Key::T, Key::U, Key::V, Key::W, Key::X,
+            Key::Y, Key::Z,
+            Key::Num0, Key::Num1, Key::Num2, Key::Num3, Key::Num4,
+            Key::Num5, Key::Num6, Key::Num7, Key::Num8, Key::Num9,
+            Key::F1, Key::F2, Key::F3, Key::F4, Key::F5, Key::F6,
+            Key::F7, Key::F8, Key::F9, Key::F10, Key::F11, Key::F12,
+            Key::F13, Key::F14, Key::F15, Key::F16, Key::F17, Key::F18,
+            Key::F19, Key::F20,
+            Key::Space, Key::Return, Key::Escape, Key::Tab, Key::Backspace,
+            Key::Delete,
+            Key::Up, Key::Down, Key::Left, Key::Right,
+            Key::Home, Key::End, Key::PageUp, Key::PageDown,
+            Key::Grave, Key::Minus, Key::Equal, Key::LeftBracket,
+            Key::RightBracket, Key::Backslash, Key::Semicolon, Key::Quote,
+            Key::Comma, Key::Period, Key::Slash,
+            Key::Numpad0, Key::Numpad1, Key::Numpad2, Key::Numpad3,
+            Key::Numpad4, Key::Numpad5, Key::Numpad6, Key::Numpad7,
+            Key::Numpad8, Key::Numpad9,
+            Key::NumpadAdd, Key::NumpadSubtract, Key::NumpadMultiply,
+            Key::NumpadDivide, Key::NumpadDecimal, Key::NumpadEnter,
+            Key::VolumeUp, Key::VolumeDown, Key::Mute,
+            Key::BrightnessUp, Key::BrightnessDown,
+            Key::PlayPause, Key::NextTrack, Key::PreviousTrack,
+            Key::PrintScreen, Key::Insert, Key::Pause,
+            Key::CapsLock, Key::NumLock, Key::ScrollLock,
+            Key::MouseLeft, Key::MouseRight, Key::MouseMiddle,
+            Key::MouseButton4, Key::MouseButton5,
+        ];
+
+        for key in all_keys {
+            let displayed = key.to_string();
+            let parsed = Key::parse(&displayed);
+            assert_eq!(
+                parsed,
+                Some(key),
+                "Display roundtrip failed for {key:?}: displayed as \"{displayed}\", parsed as {parsed:?}"
+            );
+        }
+    }
+
+    // ── Modifiers bitwise operations ────────────────────────────────
+
+    #[test]
+    fn modifiers_bitor_assign() {
+        let mut mods = Modifiers::CMD;
+        mods |= Modifiers::SHIFT;
+        assert!(mods.contains(Modifiers::CMD));
+        assert!(mods.contains(Modifiers::SHIFT));
+        assert!(!mods.contains(Modifiers::ALT));
+    }
+
+    #[test]
+    fn modifiers_bits_roundtrip() {
+        let original = Modifiers::CMD | Modifiers::ALT | Modifiers::FN;
+        let bits = original.bits();
+        let restored = Modifiers::from_bits(bits);
+        assert_eq!(original, restored);
+    }
+
+    #[test]
+    fn modifiers_none_contains_nothing() {
+        assert!(!Modifiers::NONE.contains(Modifiers::CMD));
+        assert!(!Modifiers::NONE.contains(Modifiers::CTRL));
+        assert!(!Modifiers::NONE.contains(Modifiers::ALT));
+        assert!(!Modifiers::NONE.contains(Modifiers::SHIFT));
+        assert!(!Modifiers::NONE.contains(Modifiers::FN));
+        assert!(!Modifiers::NONE.contains(Modifiers::CAPS_LOCK));
+    }
+
+    #[test]
+    fn modifiers_any_contains_none() {
+        // NONE (0) is always "contained" because (x & 0) == 0
+        assert!(Modifiers::CMD.contains(Modifiers::NONE));
+        assert!(Modifiers::NONE.contains(Modifiers::NONE));
+    }
+
+    #[test]
+    fn modifiers_hyper_contains_all_four() {
+        assert!(Modifiers::HYPER.contains(Modifiers::CMD));
+        assert!(Modifiers::HYPER.contains(Modifiers::CTRL));
+        assert!(Modifiers::HYPER.contains(Modifiers::ALT));
+        assert!(Modifiers::HYPER.contains(Modifiers::SHIFT));
+        // HYPER does not include FN or CAPS_LOCK
+        assert!(!Modifiers::HYPER.contains(Modifiers::FN));
+        assert!(!Modifiers::HYPER.contains(Modifiers::CAPS_LOCK));
+    }
+
+    // ── Hotkey equality and hashing ─────────────────────────────────
+
+    #[test]
+    fn hotkey_equality_different_parse_same_result() {
+        let a = Hotkey::parse("cmd+space").unwrap();
+        let b = Hotkey::parse("CMD+SPACE").unwrap();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn hotkey_inequality_different_modifiers() {
+        let a = Hotkey::parse("cmd+a").unwrap();
+        let b = Hotkey::parse("ctrl+a").unwrap();
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn hotkey_inequality_different_keys() {
+        let a = Hotkey::parse("cmd+a").unwrap();
+        let b = Hotkey::parse("cmd+b").unwrap();
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn hotkey_hash_consistent() {
+        use std::collections::HashSet;
+        let a = Hotkey::parse("cmd+space").unwrap();
+        let b = Hotkey::parse("cmd+space").unwrap();
+        let mut set = HashSet::new();
+        set.insert(a);
+        assert!(set.contains(&b));
+    }
+
+    #[test]
+    fn hotkey_hash_different_hotkeys() {
+        use std::collections::HashSet;
+        let a = Hotkey::parse("cmd+a").unwrap();
+        let b = Hotkey::parse("cmd+b").unwrap();
+        let mut set = HashSet::new();
+        set.insert(a);
+        set.insert(b);
+        assert_eq!(set.len(), 2);
+    }
+
+    // ── Serde roundtrip for Hotkey ──────────────────────────────────
+
+    #[test]
+    fn hotkey_serde_roundtrip() {
+        let hk = Hotkey::parse("cmd+shift+a").unwrap();
+        let json = serde_json::to_string(&hk).unwrap();
+        let deserialized: Hotkey = serde_json::from_str(&json).unwrap();
+        assert_eq!(hk, deserialized);
+    }
+
+    #[test]
+    fn hotkey_serde_no_modifiers() {
+        let hk = Hotkey::new(Modifiers::NONE, Key::Escape);
+        let json = serde_json::to_string(&hk).unwrap();
+        let deserialized: Hotkey = serde_json::from_str(&json).unwrap();
+        assert_eq!(hk, deserialized);
+    }
+
+    #[test]
+    fn key_serde_roundtrip_all_variants() {
+        let keys = [
+            Key::A, Key::Z, Key::Num0, Key::Num9, Key::F1, Key::F20,
+            Key::Space, Key::Return, Key::Escape, Key::Tab,
+            Key::Up, Key::Home, Key::PageDown,
+            Key::Grave, Key::Semicolon, Key::Slash,
+            Key::Numpad0, Key::NumpadEnter,
+            Key::VolumeUp, Key::Mute, Key::PlayPause,
+            Key::MouseLeft, Key::MouseButton5,
+        ];
+        for key in keys {
+            let json = serde_json::to_string(&key).unwrap();
+            let deserialized: Key = serde_json::from_str(&json).unwrap();
+            assert_eq!(key, deserialized, "serde roundtrip failed for {key:?}");
+        }
+    }
+
+    #[test]
+    fn modifiers_serde_roundtrip() {
+        let cases = [
+            Modifiers::NONE,
+            Modifiers::CMD,
+            Modifiers::HYPER,
+            Modifiers::CMD | Modifiers::FN | Modifiers::CAPS_LOCK,
+        ];
+        for mods in cases {
+            let json = serde_json::to_string(&mods).unwrap();
+            let deserialized: Modifiers = serde_json::from_str(&json).unwrap();
+            assert_eq!(mods, deserialized, "serde roundtrip failed for {mods:?}");
+        }
+    }
+
+    // ── Capslock ambiguity: modifier vs key ─────────────────────────
+
+    #[test]
+    fn capslock_alone_is_key() {
+        // "capslock" alone should parse as a key, not a modifier-only combo
+        let hk = Hotkey::parse("capslock").unwrap();
+        assert!(hk.modifiers.is_empty());
+        assert_eq!(hk.key, Key::CapsLock);
+    }
+
+    #[test]
+    fn caps_lock_as_modifier_with_key() {
+        // "caps_lock+a" should treat caps_lock as modifier
+        let hk = Hotkey::parse("caps_lock+a").unwrap();
+        assert!(hk.modifiers.contains(Modifiers::CAPS_LOCK));
+        assert_eq!(hk.key, Key::A);
+    }
 }

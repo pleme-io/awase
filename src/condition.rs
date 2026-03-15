@@ -222,4 +222,89 @@ mod tests {
         assert!(!json.contains("title"));
         assert!(!json.contains("display"));
     }
+
+    // ── Additional condition tests ──────────────────────────────────
+
+    #[test]
+    fn app_and_app_exclude_combined() {
+        // Both app include and exclude present -- both must pass
+        let c = Condition {
+            app: Some("Safari".to_string()),
+            app_exclude: Some("Private".to_string()),
+            ..Default::default()
+        };
+        // App matches include, no exclude match
+        assert!(c.matches(&ctx(Some("com.apple.Safari"), None, 0)));
+        // App matches include but also matches exclude
+        assert!(!c.matches(&ctx(Some("com.apple.Safari.Private"), None, 0)));
+        // App doesn't match include
+        assert!(!c.matches(&ctx(Some("com.apple.Terminal"), None, 0)));
+    }
+
+    #[test]
+    fn title_case_insensitive() {
+        let c = Condition {
+            title: Some("google".to_string()),
+            ..Default::default()
+        };
+        assert!(c.matches(&ctx(None, Some("GOOGLE Search"), 0)));
+        assert!(c.matches(&ctx(None, Some("Google"), 0)));
+    }
+
+    #[test]
+    fn app_exclude_with_spaces_in_pattern() {
+        let c = Condition {
+            app_exclude: Some(" Terminal | Ghostty ".to_string()),
+            ..Default::default()
+        };
+        assert!(!c.matches(&ctx(Some("com.apple.Terminal"), None, 0)));
+        assert!(!c.matches(&ctx(Some("com.mitchellh.Ghostty"), None, 0)));
+        assert!(c.matches(&ctx(Some("com.apple.Safari"), None, 0)));
+    }
+
+    #[test]
+    fn match_context_default_values() {
+        let ctx = MatchContext::default();
+        assert!(ctx.focused_app_bundle_id.is_none());
+        assert!(ctx.focused_window_title.is_none());
+        assert_eq!(ctx.display_index, 0);
+    }
+
+    #[test]
+    fn empty_app_pattern_matches_everything() {
+        // An empty string is a substring of every string
+        let c = Condition {
+            app: Some(String::new()),
+            ..Default::default()
+        };
+        assert!(c.matches(&ctx(Some("anything"), None, 0)));
+    }
+
+    #[test]
+    fn display_zero_matches() {
+        let c = Condition {
+            display: Some(0),
+            ..Default::default()
+        };
+        assert!(c.matches(&ctx(None, None, 0)));
+        assert!(!c.matches(&ctx(None, None, 1)));
+    }
+
+    #[test]
+    fn all_conditions_present() {
+        let c = Condition {
+            app: Some("Safari".to_string()),
+            app_exclude: Some("Private".to_string()),
+            title: Some("Search".to_string()),
+            display: Some(1),
+        };
+        // All conditions met
+        assert!(c.matches(&ctx(Some("com.apple.Safari"), Some("Google Search"), 1)));
+        // Wrong display
+        assert!(!c.matches(&ctx(Some("com.apple.Safari"), Some("Google Search"), 0)));
+        // Wrong title
+        assert!(!c.matches(&ctx(Some("com.apple.Safari"), Some("Homepage"), 1)));
+        // App excluded
+        assert!(!c.matches(&ctx(Some("com.apple.Safari.Private"), Some("Google Search"), 1)));
+    }
 }

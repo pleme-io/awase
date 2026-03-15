@@ -72,4 +72,114 @@ mod tests {
         let deserialized: KeyRemap = serde_json::from_str(&json).unwrap();
         assert_eq!(remap, deserialized);
     }
+
+    // ── Additional remap tests ──────────────────────────────────────
+
+    #[test]
+    fn remap_equality() {
+        let a = KeyRemap::new(
+            Hotkey::new(Modifiers::NONE, Key::CapsLock),
+            Hotkey::new(Modifiers::NONE, Key::Escape),
+        );
+        let b = KeyRemap::new(
+            Hotkey::new(Modifiers::NONE, Key::CapsLock),
+            Hotkey::new(Modifiers::NONE, Key::Escape),
+        );
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn remap_inequality_different_from() {
+        let a = KeyRemap::new(
+            Hotkey::new(Modifiers::NONE, Key::CapsLock),
+            Hotkey::new(Modifiers::NONE, Key::Escape),
+        );
+        let b = KeyRemap::new(
+            Hotkey::new(Modifiers::NONE, Key::Tab),
+            Hotkey::new(Modifiers::NONE, Key::Escape),
+        );
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn remap_inequality_different_to() {
+        let a = KeyRemap::new(
+            Hotkey::new(Modifiers::NONE, Key::CapsLock),
+            Hotkey::new(Modifiers::NONE, Key::Escape),
+        );
+        let b = KeyRemap::new(
+            Hotkey::new(Modifiers::NONE, Key::CapsLock),
+            Hotkey::new(Modifiers::NONE, Key::Tab),
+        );
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn remap_clone() {
+        let original = KeyRemap::new(
+            Hotkey::new(Modifiers::FN, Key::H),
+            Hotkey::new(Modifiers::NONE, Key::Left),
+        )
+        .with_condition(Condition {
+            app: Some("Terminal".to_string()),
+            ..Default::default()
+        });
+        let cloned = original.clone();
+        assert_eq!(original, cloned);
+    }
+
+    #[test]
+    fn serde_roundtrip_with_condition() {
+        let remap = KeyRemap::new(
+            Hotkey::new(Modifiers::FN, Key::H),
+            Hotkey::new(Modifiers::NONE, Key::Left),
+        )
+        .with_condition(Condition {
+            app: Some("Terminal".to_string()),
+            app_exclude: Some("iTerm".to_string()),
+            title: None,
+            display: Some(0),
+        });
+        let json = serde_json::to_string(&remap).unwrap();
+        let deserialized: KeyRemap = serde_json::from_str(&json).unwrap();
+        assert_eq!(remap, deserialized);
+    }
+
+    #[test]
+    fn serde_condition_none_skipped() {
+        let remap = KeyRemap::new(
+            Hotkey::new(Modifiers::NONE, Key::CapsLock),
+            Hotkey::new(Modifiers::NONE, Key::Escape),
+        );
+        let json = serde_json::to_string(&remap).unwrap();
+        assert!(!json.contains("condition"));
+    }
+
+    #[test]
+    fn remap_with_modifiers() {
+        let remap = KeyRemap::new(
+            Hotkey::parse("fn+h").unwrap(),
+            Hotkey::parse("left").unwrap(),
+        );
+        assert_eq!(remap.from.modifiers, Modifiers::FN);
+        assert_eq!(remap.from.key, Key::H);
+        assert!(remap.to.modifiers.is_empty());
+        assert_eq!(remap.to.key, Key::Left);
+    }
+
+    #[test]
+    fn remap_arrow_keys_via_fn() {
+        // Common macOS remap: fn+hjkl -> arrow keys
+        let remaps = vec![
+            KeyRemap::new(Hotkey::parse("fn+h").unwrap(), Hotkey::parse("left").unwrap()),
+            KeyRemap::new(Hotkey::parse("fn+j").unwrap(), Hotkey::parse("down").unwrap()),
+            KeyRemap::new(Hotkey::parse("fn+k").unwrap(), Hotkey::parse("up").unwrap()),
+            KeyRemap::new(Hotkey::parse("fn+l").unwrap(), Hotkey::parse("right").unwrap()),
+        ];
+
+        assert_eq!(remaps[0].to.key, Key::Left);
+        assert_eq!(remaps[1].to.key, Key::Down);
+        assert_eq!(remaps[2].to.key, Key::Up);
+        assert_eq!(remaps[3].to.key, Key::Right);
+    }
 }

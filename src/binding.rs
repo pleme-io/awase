@@ -155,4 +155,126 @@ mod tests {
         assert!(b.consume); // default true
         assert!(b.condition.is_none());
     }
+
+    // ── Additional binding tests ────────────────────────────────────
+
+    #[test]
+    fn builder_chaining() {
+        let b = Binding::new(test_hotkey(), Action::command("test"))
+            .with_consume(false)
+            .with_condition(Condition {
+                app: Some("Safari".to_string()),
+                ..Default::default()
+            });
+        assert!(!b.consume);
+        assert!(b.condition.is_some());
+    }
+
+    #[test]
+    fn matches_context_app_exclude() {
+        let b = Binding::new(test_hotkey(), Action::command("test"))
+            .with_condition(Condition {
+                app_exclude: Some("Terminal".to_string()),
+                ..Default::default()
+            });
+
+        let ctx_excluded = MatchContext {
+            focused_app_bundle_id: Some("com.apple.Terminal".to_string()),
+            ..Default::default()
+        };
+        assert!(!b.matches_context(&ctx_excluded));
+
+        let ctx_ok = MatchContext {
+            focused_app_bundle_id: Some("com.apple.Safari".to_string()),
+            ..Default::default()
+        };
+        assert!(b.matches_context(&ctx_ok));
+    }
+
+    #[test]
+    fn matches_context_display() {
+        let b = Binding::new(test_hotkey(), Action::command("test"))
+            .with_condition(Condition {
+                display: Some(1),
+                ..Default::default()
+            });
+
+        let ctx_match = MatchContext {
+            display_index: 1,
+            ..Default::default()
+        };
+        assert!(b.matches_context(&ctx_match));
+
+        let ctx_no_match = MatchContext {
+            display_index: 0,
+            ..Default::default()
+        };
+        assert!(!b.matches_context(&ctx_no_match));
+    }
+
+    #[test]
+    fn matches_context_title() {
+        let b = Binding::new(test_hotkey(), Action::command("test"))
+            .with_condition(Condition {
+                title: Some("Document".to_string()),
+                ..Default::default()
+            });
+
+        let ctx_match = MatchContext {
+            focused_window_title: Some("Untitled Document".to_string()),
+            ..Default::default()
+        };
+        assert!(b.matches_context(&ctx_match));
+
+        let ctx_no_match = MatchContext {
+            focused_window_title: Some("Settings".to_string()),
+            ..Default::default()
+        };
+        assert!(!b.matches_context(&ctx_no_match));
+    }
+
+    #[test]
+    fn binding_equality() {
+        let a = Binding::new(test_hotkey(), Action::command("a"));
+        let b = Binding::new(test_hotkey(), Action::command("a"));
+        assert_eq!(a, b);
+
+        let c = Binding::new(test_hotkey(), Action::command("b"));
+        assert_ne!(a, c);
+    }
+
+    #[test]
+    fn binding_clone() {
+        let original = Binding::new(test_hotkey(), Action::command("test"))
+            .with_consume(false)
+            .with_condition(Condition {
+                app: Some("Safari".to_string()),
+                ..Default::default()
+            });
+        let cloned = original.clone();
+        assert_eq!(original, cloned);
+    }
+
+    #[test]
+    fn serde_with_consume_false() {
+        let b = Binding::new(test_hotkey(), Action::command("test"))
+            .with_consume(false);
+        let json = serde_json::to_string(&b).unwrap();
+        let deserialized: Binding = serde_json::from_str(&json).unwrap();
+        assert!(!deserialized.consume);
+    }
+
+    #[test]
+    fn serde_with_all_condition_fields() {
+        let b = Binding::new(test_hotkey(), Action::exec("open -a Safari"))
+            .with_condition(Condition {
+                app: Some("Browser".to_string()),
+                app_exclude: Some("Firefox".to_string()),
+                title: Some("New Tab".to_string()),
+                display: Some(2),
+            });
+        let json = serde_json::to_string_pretty(&b).unwrap();
+        let deserialized: Binding = serde_json::from_str(&json).unwrap();
+        assert_eq!(b, deserialized);
+    }
 }

@@ -569,4 +569,320 @@ mod tests {
         let result = map.match_key(caps, &ctx());
         assert!(matches!(result, MatchResult::Remapped { .. }));
     }
+
+    // ── Additional BindingMap tests ─────────────────────────────────
+
+    #[test]
+    fn binding_map_default_has_default_mode() {
+        let map = BindingMap::default();
+        assert!(map.mode("default").is_some());
+        assert_eq!(map.mode_names().len(), 1);
+    }
+
+    #[test]
+    fn binding_map_mode_switch_resets_chord_state() {
+        let mut map = BindingMap::new();
+        map.add_mode(KeyMode::new("other", true));
+
+        let ctrl_a = Hotkey::new(Modifiers::CTRL, Key::A);
+        let plain_c = Hotkey::new(Modifiers::NONE, Key::C);
+
+        map.add_chord(crate::chord::KeyChord {
+            leader: ctrl_a,
+            follower: plain_c,
+            timeout_ms: 5000,
+            action: Action::command("chord_action"),
+        });
+
+        // Start a chord
+        let result = map.match_key(ctrl_a, &ctx());
+        assert!(matches!(result, MatchResult::ChordPending { .. }));
+
+        // Switch mode -- should reset chord state
+        map.set_mode("other").unwrap();
+
+        // Now pressing the follower should not complete the chord
+        let result = map.match_key(plain_c, &ctx());
+        assert_eq!(result, MatchResult::NoMatch);
+    }
+
+    #[test]
+    fn binding_map_bindings_isolated_across_modes() {
+        let mut map = BindingMap::new();
+
+        // Add binding only in default mode
+        map.mode_mut("default")
+            .unwrap()
+            .add_binding(Binding::new(cmd_h(), Action::command("default_action")));
+
+        // Add a second mode without that binding
+        map.add_mode(KeyMode::new("other", true));
+
+        // Should match in default mode
+        let result = map.match_key(cmd_h(), &ctx());
+        assert!(matches!(result, MatchResult::Matched { .. }));
+
+        // Switch to other mode -- should not match
+        map.set_mode("other").unwrap();
+        let result = map.match_key(cmd_h(), &ctx());
+        assert_eq!(result, MatchResult::NoMatch);
+    }
+
+    #[test]
+    fn binding_map_non_consuming_binding() {
+        let mut map = BindingMap::new();
+        map.mode_mut("default")
+            .unwrap()
+            .add_binding(Binding::new(cmd_h(), Action::command("passthrough")).with_consume(false));
+
+        let result = map.match_key(cmd_h(), &ctx());
+        assert_eq!(
+            result,
+            MatchResult::Matched {
+                action: Action::command("passthrough"),
+                consume: false,
+            }
+        );
+    }
+
+    #[test]
+    fn binding_map_conditional_binding_in_mode() {
+        let mut map = BindingMap::new();
+        map.mode_mut("default").unwrap().add_binding(
+            Binding::new(cmd_h(), Action::command("focus_west"))
+                .with_condition(crate::Condition {
+                    app: Some("Safari".to_string()),
+                    ..Default::default()
+                }),
+        );
+
+        // Match in Safari
+        let safari_ctx = MatchContext {
+            focused_app_bundle_id: Some("com.apple.Safari".to_string()),
+            ..Default::default()
+        };
+        let result = map.match_key(cmd_h(), &safari_ctx);
+        assert!(matches!(result, MatchResult::Matched { .. }));
+
+        // No match in other apps
+        let terminal_ctx = MatchContext {
+            focused_app_bundle_id: Some("com.apple.Terminal".to_string()),
+            ..Default::default()
+        };
+        let result = map.match_key(cmd_h(), &terminal_ctx);
+        assert_eq!(result, MatchResult::NoMatch);
+    }
+
+    #[test]
+    fn binding_map_multiple_chords_different_leaders() {
+        let mut map = BindingMap::new();
+
+        let ctrl_a = Hotkey::new(Modifiers::CTRL, Key::A);
+        let ctrl_b = Hotkey::new(Modifiers::CTRL, Key::B);
+        let plain_c = Hotkey::new(Modifiers::NONE, Key::C);
+
+        map.add_chord(crate::chord::KeyChord {
+            leader: ctrl_a,
+            follower: plain_c,
+            timeout_ms: 1000,
+            action: Action::command("chord_a_c"),
+        });
+        map.add_chord(crate::chord::KeyChord {
+            leader: ctrl_b,
+            follower: plain_c,
+            timeout_ms: 1000,
+            action: Action::command("chord_b_c"),
+        });
+
+        // Activate chord with ctrl+a, complete with c
+        map.match_key(ctrl_a, &ctx());
+        let result = map.match_key(plain_c, &ctx());
+        assert_eq!(
+            result,
+            MatchResult::Matched {
+                action: Action::command("chord_a_c"),
+                consume: true,
+            }
+        );
+
+        // Activate chord with ctrl+b, complete with c
+        map.match_key(ctrl_b, &ctx());
+        let result = map.match_key(plain_c, &ctx());
+        assert_eq!(
+            result,
+            MatchResult::Matched {
+                action: Action::command("chord_b_c"),
+                consume: true,
+            }
+        );
+    }
+
+    #[test]
+    fn binding_map_multiple_chords_same_leader_different_followers() {
+        let mut map = BindingMap::new();
+
+        let ctrl_a = Hotkey::new(Modifiers::CTRL, Key::A);
+        let plain_c = Hotkey::new(Modifiers::NONE, Key::C);
+        let plain_n = Hotkey::new(Modifiers::NONE, Key::N);
+
+        map.add_chord(crate::chord::KeyChord {
+            leader: ctrl_a,
+            follower: plain_c,
+            timeout_ms: 1000,
+            action: Action::command("new_window"),
+        });
+        map.add_chord(crate::chord::KeyChord {
+            leader: ctrl_a,
+            follower: plain_n,
+            timeout_ms: 1000,
+            action: Action::command("next_window"),
+        });
+
+        // ctrl+a then n
+        map.match_key(ctrl_a, &ctx());
+        let result = map.match_key(plain_n, &ctx());
+        assert_eq!(
+            result,
+            MatchResult::Matched {
+                action: Action::command("next_window"),
+                consume: true,
+            }
+        );
+
+        // ctrl+a then c
+        map.match_key(ctrl_a, &ctx());
+        let result = map.match_key(plain_c, &ctx());
+        assert_eq!(
+            result,
+            MatchResult::Matched {
+                action: Action::command("new_window"),
+                consume: true,
+            }
+        );
+    }
+
+    #[test]
+    fn binding_map_remap_does_not_affect_different_key() {
+        let mut map = BindingMap::new();
+
+        map.add_remap(crate::remap::KeyRemap {
+            from: Hotkey::new(Modifiers::NONE, Key::CapsLock),
+            to: Hotkey::new(Modifiers::NONE, Key::Escape),
+            condition: None,
+        });
+
+        // A different key should not be remapped
+        let result = map.match_key(
+            Hotkey::new(Modifiers::NONE, Key::A),
+            &ctx(),
+        );
+        assert_eq!(result, MatchResult::NoMatch);
+    }
+
+    #[test]
+    fn binding_map_multiple_remaps_first_match_wins() {
+        let mut map = BindingMap::new();
+
+        let caps = Hotkey::new(Modifiers::NONE, Key::CapsLock);
+
+        map.add_remap(crate::remap::KeyRemap {
+            from: caps,
+            to: Hotkey::new(Modifiers::NONE, Key::Escape),
+            condition: None,
+        });
+        map.add_remap(crate::remap::KeyRemap {
+            from: caps,
+            to: Hotkey::new(Modifiers::NONE, Key::Tab),
+            condition: None,
+        });
+
+        // First remap should win
+        let result = map.match_key(caps, &ctx());
+        assert_eq!(
+            result,
+            MatchResult::Remapped {
+                to: Hotkey::new(Modifiers::NONE, Key::Escape),
+            }
+        );
+    }
+
+    #[test]
+    fn binding_map_remap_takes_priority_over_chord() {
+        let mut map = BindingMap::new();
+
+        let caps = Hotkey::new(Modifiers::NONE, Key::CapsLock);
+
+        map.add_remap(crate::remap::KeyRemap {
+            from: caps,
+            to: Hotkey::new(Modifiers::NONE, Key::Escape),
+            condition: None,
+        });
+
+        map.add_chord(crate::chord::KeyChord {
+            leader: caps,
+            follower: Hotkey::new(Modifiers::NONE, Key::C),
+            timeout_ms: 1000,
+            action: Action::command("should_not_match"),
+        });
+
+        // Remap should take priority over chord leader
+        let result = map.match_key(caps, &ctx());
+        assert!(matches!(result, MatchResult::Remapped { .. }));
+    }
+
+    #[test]
+    fn binding_map_chord_takes_priority_over_mode_binding() {
+        let mut map = BindingMap::new();
+
+        let ctrl_a = Hotkey::new(Modifiers::CTRL, Key::A);
+        let plain_c = Hotkey::new(Modifiers::NONE, Key::C);
+
+        // Add a binding for ctrl+a in default mode
+        map.mode_mut("default")
+            .unwrap()
+            .add_binding(Binding::new(ctrl_a, Action::command("select_all")));
+
+        // Also add a chord with ctrl+a as leader
+        map.add_chord(crate::chord::KeyChord {
+            leader: ctrl_a,
+            follower: plain_c,
+            timeout_ms: 1000,
+            action: Action::command("chord_action"),
+        });
+
+        // Chord leader should take priority -- returns ChordPending
+        let result = map.match_key(ctrl_a, &ctx());
+        assert!(matches!(result, MatchResult::ChordPending { .. }));
+    }
+
+    #[test]
+    fn binding_map_mode_passthrough_false() {
+        let mut map = BindingMap::new();
+        map.add_mode(KeyMode::new("modal", false));
+        map.set_mode("modal").unwrap();
+        assert!(!map.current_mode_passthrough());
+    }
+
+    #[test]
+    fn binding_map_list_bindings_empty_mode() {
+        let map = BindingMap::new();
+        assert!(map.list_bindings().is_empty());
+    }
+
+    #[test]
+    fn binding_map_add_mode_replaces_existing() {
+        let mut map = BindingMap::new();
+
+        let mut mode1 = KeyMode::new("default", true);
+        mode1.add_binding(Binding::new(cmd_h(), Action::command("a")));
+        map.add_mode(mode1);
+
+        // Replace default mode with empty one
+        let mode2 = KeyMode::new("default", false);
+        map.add_mode(mode2);
+
+        // Binding should be gone, passthrough should be false
+        assert!(!map.current_mode_passthrough());
+        assert!(map.list_bindings().is_empty());
+    }
 }

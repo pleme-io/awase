@@ -133,4 +133,117 @@ mod tests {
         assert_eq!(report.conflicts.len(), 1);
         assert_eq!(report.conflicts[0].mode, "resize");
     }
+
+    // ── Additional conflict detection tests ─────────────────────────
+
+    #[test]
+    fn no_modes_no_conflicts() {
+        let report = detect_conflicts(&[], &[]);
+        assert!(report.is_clean());
+    }
+
+    #[test]
+    fn chords_only_no_modes_no_conflicts() {
+        let chord = KeyChord {
+            leader: ctrl_a(),
+            follower: Hotkey::new(Modifiers::NONE, Key::C),
+            timeout_ms: 1000,
+            action: Action::command("test"),
+        };
+        let report = detect_conflicts(&[], &[chord]);
+        assert!(report.is_clean());
+    }
+
+    #[test]
+    fn modes_only_no_chords_no_conflicts() {
+        let mut mode = KeyMode::new("default", true);
+        mode.add_binding(Binding::new(ctrl_a(), Action::command("test")));
+        let report = detect_conflicts(&[&mode], &[]);
+        assert!(report.is_clean());
+    }
+
+    #[test]
+    fn same_chord_conflicts_in_multiple_modes() {
+        let mut default = KeyMode::new("default", true);
+        default.add_binding(Binding::new(ctrl_a(), Action::command("select_all")));
+
+        let mut resize = KeyMode::new("resize", false);
+        resize.add_binding(Binding::new(ctrl_a(), Action::command("shrink")));
+
+        let chord = KeyChord {
+            leader: ctrl_a(),
+            follower: Hotkey::new(Modifiers::NONE, Key::C),
+            timeout_ms: 1000,
+            action: Action::command("new_window"),
+        };
+
+        let report = detect_conflicts(&[&default, &resize], &[chord]);
+        assert_eq!(report.conflicts.len(), 2);
+        let modes: Vec<&str> = report.conflicts.iter().map(|c| c.mode.as_str()).collect();
+        assert!(modes.contains(&"default"));
+        assert!(modes.contains(&"resize"));
+    }
+
+    #[test]
+    fn multiple_chords_multiple_conflicts() {
+        let mut mode = KeyMode::new("default", true);
+        mode.add_binding(Binding::new(ctrl_a(), Action::command("a")));
+        mode.add_binding(Binding::new(
+            Hotkey::new(Modifiers::CTRL, Key::B),
+            Action::command("b"),
+        ));
+
+        let chord1 = KeyChord {
+            leader: ctrl_a(),
+            follower: Hotkey::new(Modifiers::NONE, Key::C),
+            timeout_ms: 1000,
+            action: Action::command("chord_a"),
+        };
+        let chord2 = KeyChord {
+            leader: Hotkey::new(Modifiers::CTRL, Key::B),
+            follower: Hotkey::new(Modifiers::NONE, Key::C),
+            timeout_ms: 1000,
+            action: Action::command("chord_b"),
+        };
+
+        let report = detect_conflicts(&[&mode], &[chord1, chord2]);
+        assert_eq!(report.conflicts.len(), 2);
+    }
+
+    #[test]
+    fn conflict_entry_contains_hotkey() {
+        let mut mode = KeyMode::new("default", true);
+        mode.add_binding(Binding::new(ctrl_a(), Action::command("select_all")));
+
+        let chord = KeyChord {
+            leader: ctrl_a(),
+            follower: Hotkey::new(Modifiers::NONE, Key::C),
+            timeout_ms: 1000,
+            action: Action::command("new_window"),
+        };
+
+        let report = detect_conflicts(&[&mode], &[chord]);
+        assert_eq!(report.conflicts[0].hotkey, ctrl_a());
+        assert!(report.conflicts[0].existing.contains("select_all"));
+        assert!(report.conflicts[0].new.contains("chord leader"));
+    }
+
+    #[test]
+    fn conflict_report_is_clean_true_when_empty() {
+        let report = ConflictReport::default();
+        assert!(report.is_clean());
+    }
+
+    #[test]
+    fn conflict_report_is_clean_false_with_entries() {
+        let report = ConflictReport {
+            conflicts: vec![ConflictEntry {
+                mode: "default".to_string(),
+                hotkey: ctrl_a(),
+                existing: "a".to_string(),
+                new: "b".to_string(),
+            }],
+        };
+        assert!(!report.is_clean());
+    }
 }

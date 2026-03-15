@@ -153,4 +153,111 @@ mod tests {
             0x0010_0000 | 0x0004_0000 | 0x0008_0000 | 0x0002_0000
         );
     }
+
+    // ── Additional flags tests ──────────────────────────────────────
+
+    #[test]
+    fn modifiers_to_flags_none() {
+        assert_eq!(modifiers_to_cg_flags(Modifiers::NONE), 0);
+    }
+
+    #[test]
+    fn modifiers_to_flags_each_modifier() {
+        assert_eq!(modifiers_to_cg_flags(Modifiers::CMD), 0x0010_0000);
+        assert_eq!(modifiers_to_cg_flags(Modifiers::SHIFT), 0x0002_0000);
+        assert_eq!(modifiers_to_cg_flags(Modifiers::ALT), 0x0008_0000);
+        assert_eq!(modifiers_to_cg_flags(Modifiers::CTRL), 0x0004_0000);
+        assert_eq!(modifiers_to_cg_flags(Modifiers::FN), 0x0080_0000);
+    }
+
+    #[test]
+    fn modifiers_to_flags_caps_lock_not_included() {
+        // CAPS_LOCK is not in MODIFIER_MASKS, so it should produce 0
+        assert_eq!(modifiers_to_cg_flags(Modifiers::CAPS_LOCK), 0);
+    }
+
+    #[test]
+    fn left_device_flags_recognized() {
+        // Left shift device flag
+        let mods = cg_flags_to_modifiers(0x0000_0002);
+        assert!(mods.contains(Modifiers::SHIFT));
+
+        // Left alt device flag
+        let mods = cg_flags_to_modifiers(0x0000_0020);
+        assert!(mods.contains(Modifiers::ALT));
+
+        // Left ctrl device flag
+        let mods = cg_flags_to_modifiers(0x0000_0001);
+        assert!(mods.contains(Modifiers::CTRL));
+    }
+
+    #[test]
+    fn right_device_flags_recognized() {
+        // Right shift device flag
+        let mods = cg_flags_to_modifiers(0x0000_0004);
+        assert!(mods.contains(Modifiers::SHIFT));
+
+        // Right alt device flag
+        let mods = cg_flags_to_modifiers(0x0000_0040);
+        assert!(mods.contains(Modifiers::ALT));
+
+        // Right ctrl device flag
+        let mods = cg_flags_to_modifiers(0x0000_2000);
+        assert!(mods.contains(Modifiers::CTRL));
+    }
+
+    #[test]
+    fn mixed_device_and_main_flags() {
+        // Left cmd device flag + main shift flag
+        let mods = cg_flags_to_modifiers(0x0000_0008 | 0x0002_0000);
+        assert!(mods.contains(Modifiers::CMD));
+        assert!(mods.contains(Modifiers::SHIFT));
+        assert!(!mods.contains(Modifiers::ALT));
+    }
+
+    #[test]
+    fn irrelevant_bits_ignored() {
+        // Set bits that are not modifier flags
+        let mods = cg_flags_to_modifiers(0x0000_0100);
+        assert_eq!(mods, Modifiers::NONE);
+    }
+
+    #[test]
+    fn all_device_flags_at_once() {
+        // All left device flags combined
+        let flags = 0x0000_0008 // left cmd
+                  | 0x0000_0002 // left shift
+                  | 0x0000_0020 // left alt
+                  | 0x0000_0001 // left ctrl
+                  | 0x0080_0000; // fn
+        let mods = cg_flags_to_modifiers(flags);
+        assert!(mods.contains(Modifiers::CMD));
+        assert!(mods.contains(Modifiers::SHIFT));
+        assert!(mods.contains(Modifiers::ALT));
+        assert!(mods.contains(Modifiers::CTRL));
+        assert!(mods.contains(Modifiers::FN));
+    }
+
+    #[test]
+    fn roundtrip_fn_modifier() {
+        let mods = Modifiers::FN;
+        let flags = modifiers_to_cg_flags(mods);
+        let back = cg_flags_to_modifiers(flags);
+        assert_eq!(back, mods);
+    }
+
+    #[test]
+    fn roundtrip_single_modifiers() {
+        for mods in [
+            Modifiers::CMD,
+            Modifiers::CTRL,
+            Modifiers::ALT,
+            Modifiers::SHIFT,
+            Modifiers::FN,
+        ] {
+            let flags = modifiers_to_cg_flags(mods);
+            let back = cg_flags_to_modifiers(flags);
+            assert_eq!(back, mods, "roundtrip failed for {mods:?}");
+        }
+    }
 }
