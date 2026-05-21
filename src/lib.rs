@@ -39,6 +39,7 @@ mod manager;
 pub mod mode;
 pub mod macos;
 pub mod remap;
+pub mod repeat_gate;
 
 pub use action::Action;
 pub use binding::Binding;
@@ -50,6 +51,7 @@ pub use hotkey::{Hotkey, Key, Modifiers};
 pub use manager::{HotkeyManager, NoopManager};
 pub use mode::{BindingMap, KeyMode, MatchResult};
 pub use remap::KeyRemap;
+pub use repeat_gate::{KeyRepeatGate, DEFAULT_MIN_INTERVAL};
 
 #[cfg(test)]
 mod integration_tests {
