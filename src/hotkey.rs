@@ -498,6 +498,78 @@ impl Hotkey {
         Ok(Self { modifiers, key })
     }
 
+    /// Parse an atlas-form chord from `ishou_tokens::FleetKeybinds`.
+    ///
+    /// The fleet atlas declares chords in the concise emacs/tmux short
+    /// form (`"C-r"`, `"M-c"`, `"S-tab"`, `"D-space"`). This method
+    /// normalizes them to awase's canonical `"ctrl+r"` long form and
+    /// parses through [`Self::parse`].
+    ///
+    /// Mapping (case-sensitive on the modifier letter):
+    ///
+    /// - `C-` → `ctrl+`
+    /// - `M-` → `alt+`
+    /// - `S-` → `shift+`
+    /// - `D-` → `super+`/`cmd+`
+    ///
+    /// Multi-key chords (`"C-x e"`) are NOT supported — Hotkey is a
+    /// single (modifiers, key) tuple, and the atlas's multi-key forms
+    /// (currently only `edit_in_editor`) target shell line-editing
+    /// surfaces (frost-lisp) that awase consumers do not see. Multi-key
+    /// input here returns `InvalidHotkey`.
+    ///
+    /// Single-segment input is treated as a bare key (`"tab"`, `"f10"`).
+    /// Already-long-form input (`"ctrl+r"`) passes through unchanged.
+    ///
+    /// # Errors
+    ///
+    /// Returns `AwaseError::InvalidHotkey` when the input is empty,
+    /// contains an unrecognized modifier letter, names an unknown key,
+    /// or is a multi-key sequence.
+    pub fn parse_atlas_chord(s: &str) -> Result<Self, AwaseError> {
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
+            return Err(AwaseError::InvalidHotkey(
+                "empty atlas chord".to_string(),
+            ));
+        }
+        if trimmed.split_whitespace().count() > 1 {
+            return Err(AwaseError::InvalidHotkey(format!(
+                "multi-key atlas chord not supported by Hotkey (single-tuple): {trimmed}"
+            )));
+        }
+        // Already long-form (contains '+') — pass through.
+        if trimmed.contains('+') {
+            return Self::parse(trimmed);
+        }
+        // Short-form: split on '-', last segment is the key, earlier
+        // segments are single-letter modifier codes.
+        let segments: Vec<&str> = trimmed.split('-').collect();
+        if segments.len() == 1 {
+            // Bare key — let parse() handle it.
+            return Self::parse(trimmed);
+        }
+        let key = (*segments.last().unwrap()).to_ascii_lowercase();
+        let modifier_segs = &segments[..segments.len() - 1];
+        let mut long_parts: Vec<String> = Vec::with_capacity(modifier_segs.len() + 1);
+        for seg in modifier_segs {
+            let m = match *seg {
+                "C" | "c" => "ctrl",
+                "M" | "m" => "alt",
+                "S" | "s" => "shift",
+                "D" | "d" => "cmd",
+                other => {
+                    return Err(AwaseError::InvalidHotkey(format!(
+                        "unknown atlas modifier {other:?} in chord {trimmed:?}"
+                    )));
+                }
+            };
+            long_parts.push(m.into());
+        }
+        long_parts.push(key);
+        Self::parse(&long_parts.join("+"))
+    }
+
     /// Parse skhd-style format: `"cmd - h"`, `"ctrl + alt - space"`.
     ///
     /// In skhd format, modifiers are separated by `+` on the left side of
@@ -612,6 +684,88 @@ mod tests {
         let result = Hotkey::parse("invalid");
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), AwaseError::InvalidHotkey(_)));
+    }
+
+    // ── parse_atlas_chord — `ishou_tokens::FleetKeybinds` adapter ──
+
+    #[test]
+    fn parse_atlas_chord_short_form_history_picker() {
+        // Atlas declares history_picker = "C-r"; awase consumers
+        // turn that into a typed Hotkey with one call.
+        let hk = Hotkey::parse_atlas_chord("C-r").unwrap();
+        assert_eq!(hk.modifiers, Modifiers::CTRL);
+        assert_eq!(hk.key, Key::R);
+    }
+
+    #[test]
+    fn parse_atlas_chord_short_form_alt_modifier() {
+        let hk = Hotkey::parse_atlas_chord("M-c").unwrap();
+        assert_eq!(hk.modifiers, Modifiers::ALT);
+        assert_eq!(hk.key, Key::C);
+    }
+
+    #[test]
+    fn parse_atlas_chord_short_form_super_via_d() {
+        // Atlas's `D-` short-code maps to cmd on macOS / super
+        // elsewhere — both flagged by awase as CMD (the unified
+        // primary modifier).
+        let hk = Hotkey::parse_atlas_chord("D-space").unwrap();
+        assert_eq!(hk.modifiers, Modifiers::CMD);
+        assert_eq!(hk.key, Key::Space);
+    }
+
+    #[test]
+    fn parse_atlas_chord_long_form_passes_through() {
+        // Already-long-form input (consumer already normalized) just
+        // routes through parse() unchanged.
+        let hk = Hotkey::parse_atlas_chord("ctrl+r").unwrap();
+        assert_eq!(hk.modifiers, Modifiers::CTRL);
+        assert_eq!(hk.key, Key::R);
+    }
+
+    #[test]
+    fn parse_atlas_chord_bare_key_no_modifier() {
+        let hk = Hotkey::parse_atlas_chord("tab").unwrap();
+        assert_eq!(hk.modifiers, Modifiers::NONE);
+        assert_eq!(hk.key, Key::Tab);
+    }
+
+    #[test]
+    fn parse_atlas_chord_multi_key_returns_error() {
+        // C-x e is shell-line-editing surface, not GUI hotkey —
+        // multi-key sequences error explicitly so consumers don't
+        // silently truncate.
+        let err = Hotkey::parse_atlas_chord("C-x e").unwrap_err();
+        assert!(matches!(err, AwaseError::InvalidHotkey(_)));
+    }
+
+    #[test]
+    fn parse_atlas_chord_empty_returns_error() {
+        let err = Hotkey::parse_atlas_chord("").unwrap_err();
+        assert!(matches!(err, AwaseError::InvalidHotkey(_)));
+    }
+
+    #[test]
+    fn parse_atlas_chord_unknown_modifier_letter_returns_error() {
+        // 'X' is not a recognized short-form modifier.
+        let err = Hotkey::parse_atlas_chord("X-q").unwrap_err();
+        if let AwaseError::InvalidHotkey(msg) = &err {
+            assert!(
+                msg.contains("unknown atlas modifier"),
+                "msg: {msg}",
+            );
+        } else {
+            panic!("expected InvalidHotkey, got {err:?}");
+        }
+    }
+
+    #[test]
+    fn parse_atlas_chord_chained_modifiers() {
+        // C-S-tab → ctrl+shift+tab (chained short-codes).
+        let hk = Hotkey::parse_atlas_chord("C-S-tab").unwrap();
+        assert!(hk.modifiers.contains(Modifiers::CTRL));
+        assert!(hk.modifiers.contains(Modifiers::SHIFT));
+        assert_eq!(hk.key, Key::Tab);
     }
 
     #[test]
