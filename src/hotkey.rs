@@ -542,31 +542,42 @@ impl Hotkey {
         if trimmed.contains('+') {
             return Self::parse(trimmed);
         }
-        // Short-form: split on '-', last segment is the key, earlier
-        // segments are single-letter modifier codes.
-        let segments: Vec<&str> = trimmed.split('-').collect();
-        if segments.len() == 1 {
-            // Bare key — let parse() handle it.
-            return Self::parse(trimmed);
-        }
-        let key = (*segments.last().unwrap()).to_ascii_lowercase();
-        let modifier_segs = &segments[..segments.len() - 1];
-        let mut long_parts: Vec<String> = Vec::with_capacity(modifier_segs.len() + 1);
-        for seg in modifier_segs {
-            let m = match *seg {
-                "C" | "c" => "ctrl",
-                "M" | "m" => "alt",
-                "S" | "s" => "shift",
-                "D" | "d" => "cmd",
-                other => {
-                    return Err(AwaseError::InvalidHotkey(format!(
-                        "unknown atlas modifier {other:?} in chord {trimmed:?}"
-                    )));
-                }
+        // Atlas short-form parse — state machine that greedily peels
+        // `<MOD-CHAR>-` prefixes off the front, leaving the key as
+        // the final remainder. Handles atlas's awkward-but-canonical
+        // forms like "D--" (cmd + literal "-" key) which a naive
+        // split('-') breaks on.
+        //
+        // A modifier-prefix is exactly two bytes: an ASCII letter in
+        // {C, M, S, D} (case-insensitive) followed by '-'. Anything
+        // not matching that shape ends the modifier scan and becomes
+        // the key.
+        let bytes = trimmed.as_bytes();
+        let mut cursor = 0usize;
+        let mut long_parts: Vec<String> = Vec::new();
+        while cursor + 1 < bytes.len() {
+            let first = bytes[cursor];
+            let second = bytes[cursor + 1];
+            if second != b'-' {
+                break;
+            }
+            let modifier = match first {
+                b'C' | b'c' => "ctrl",
+                b'M' | b'm' => "alt",
+                b'S' | b's' => "shift",
+                b'D' | b'd' => "cmd",
+                _ => break,
             };
-            long_parts.push(m.into());
+            long_parts.push(modifier.into());
+            cursor += 2;
         }
-        long_parts.push(key);
+        let key = &trimmed[cursor..];
+        if key.is_empty() {
+            return Err(AwaseError::InvalidHotkey(format!(
+                "no key found in atlas chord {trimmed:?} (only modifiers)"
+            )));
+        }
+        long_parts.push(key.to_ascii_lowercase());
         Self::parse(&long_parts.join("+"))
     }
 
@@ -746,17 +757,38 @@ mod tests {
     }
 
     #[test]
-    fn parse_atlas_chord_unknown_modifier_letter_returns_error() {
-        // 'X' is not a recognized short-form modifier.
+    fn parse_atlas_chord_unknown_modifier_letter_treats_as_key_then_errors_on_unknown_key() {
+        // 'X-q' — 'X' is not a recognized modifier, so the state
+        // machine stops at cursor 0 and treats the whole string as
+        // the key. "x-q" is not a valid awase Key — error.
         let err = Hotkey::parse_atlas_chord("X-q").unwrap_err();
-        if let AwaseError::InvalidHotkey(msg) = &err {
-            assert!(
-                msg.contains("unknown atlas modifier"),
-                "msg: {msg}",
-            );
-        } else {
-            panic!("expected InvalidHotkey, got {err:?}");
-        }
+        assert!(matches!(err, AwaseError::InvalidHotkey(_)));
+    }
+
+    #[test]
+    fn parse_atlas_chord_literal_minus_key_with_cmd() {
+        // "D--" = Cmd + literal "-" key. Atlas's font_decrease binding.
+        // The split-on-'-' parser would mangle this; the state machine
+        // peels "D-" off the front and treats the remaining "-" as key.
+        let hk = Hotkey::parse_atlas_chord("D--").unwrap();
+        assert_eq!(hk.modifiers, Modifiers::CMD);
+        assert_eq!(hk.key, Key::Minus);
+    }
+
+    #[test]
+    fn parse_atlas_chord_literal_equals_key_with_cmd() {
+        // "D-=" = Cmd + "=". Atlas's font_increase binding.
+        let hk = Hotkey::parse_atlas_chord("D-=").unwrap();
+        assert_eq!(hk.modifiers, Modifiers::CMD);
+        assert_eq!(hk.key, Key::Equal);
+    }
+
+    #[test]
+    fn parse_atlas_chord_no_modifiers_no_key_errors() {
+        // "C-" with nothing after the modifier is malformed — error
+        // rather than silently dropping the modifier.
+        let err = Hotkey::parse_atlas_chord("C-").unwrap_err();
+        assert!(matches!(err, AwaseError::InvalidHotkey(_)));
     }
 
     #[test]
