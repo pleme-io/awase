@@ -646,6 +646,49 @@ impl fmt::Display for Hotkey {
     }
 }
 
+/// Resolve an atlas chord into a typed [`Hotkey`], panicking with a
+/// labelled message on parse failure. The two-string call form
+/// (`atlas_hotkey(kb.copy, "copy")`) is what hand-written
+/// `default_bindings()` functions reach for; the [`atlas_chord!`]
+/// macro generates that exact call from a single field access.
+///
+/// # Panics
+///
+/// Panics when `chord` cannot be parsed as an atlas-form hotkey.
+/// The panic message names `intent_label` and the offending chord
+/// so the failure points directly at the FleetKeybinds field that
+/// drifted.
+#[must_use]
+pub fn atlas_hotkey(chord: &str, intent_label: &str) -> Hotkey {
+    Hotkey::parse_atlas_chord(chord).unwrap_or_else(|e| {
+        panic!("atlas chord {intent_label} = {chord:?} failed to parse: {e}")
+    })
+}
+
+/// Sugar over [`atlas_hotkey`] that auto-stringifies the field name
+/// as the intent label. Consumer code becomes:
+///
+/// ```ignore
+/// use awase::atlas_chord;
+/// let kb = ishou_tokens::FleetKeybinds::prescribed();
+/// let copy_hotkey = atlas_chord!(kb.copy);
+/// // panics on parse failure as: "atlas chord copy = "D-c" failed: ..."
+/// ```
+///
+/// Equivalent to `awase::atlas_hotkey($kb.$field, stringify!($field))`.
+/// Macro form keeps consumer call sites at 1 token of overhead per
+/// chord binding — the prime-directive "third site" lift after mado +
+/// namimado both wrote the same lambda by hand.
+#[macro_export]
+macro_rules! atlas_chord {
+    ($kb:ident . $field:ident) => {
+        $crate::atlas_hotkey($kb.$field, stringify!($field))
+    };
+    ($kb:expr, $field:ident) => {
+        $crate::atlas_hotkey(($kb).$field, stringify!($field))
+    };
+}
+
 /// Parse a modifier name (case-insensitive). Returns `None` if not a modifier.
 fn parse_modifier(s: &str) -> Option<Modifiers> {
     match s.to_ascii_lowercase().as_str() {
@@ -789,6 +832,67 @@ mod tests {
         // rather than silently dropping the modifier.
         let err = Hotkey::parse_atlas_chord("C-").unwrap_err();
         assert!(matches!(err, AwaseError::InvalidHotkey(_)));
+    }
+
+    // ── atlas_hotkey + atlas_chord! macro ────────────────────────
+
+    #[test]
+    fn atlas_hotkey_resolves_canonical_chord() {
+        // The labeled-panic variant: consumer hands a chord + a
+        // human label. Parse success returns the Hotkey unchanged.
+        let hk = atlas_hotkey("D-c", "copy");
+        assert_eq!(hk.modifiers, Modifiers::CMD);
+        assert_eq!(hk.key, Key::C);
+    }
+
+    #[test]
+    #[should_panic(expected = "atlas chord copy = \"NOT-A-CHORD\" failed")]
+    fn atlas_hotkey_panic_message_names_intent_label_and_chord() {
+        let _ = atlas_hotkey("NOT-A-CHORD", "copy");
+    }
+
+    #[test]
+    fn atlas_chord_macro_resolves_field_access_form() {
+        // The macro form auto-stringifies the field name — no double
+        // typing of the intent label by hand.
+        //
+        // Synthetic struct mimicking ishou_tokens::FleetKeybinds
+        // (the macro doesn't depend on ishou-tokens — any struct
+        // with a `&'static str` field works).
+        struct FakeAtlas {
+            copy: &'static str,
+        }
+        let kb = FakeAtlas { copy: "D-c" };
+        let hk = atlas_chord!(kb.copy);
+        assert_eq!(hk.modifiers, Modifiers::CMD);
+        assert_eq!(hk.key, Key::C);
+    }
+
+    #[test]
+    fn atlas_chord_macro_resolves_expression_form() {
+        // Two-argument form for non-ident bases (e.g. wrapping
+        // `kb_ref.atlas` or a function call).
+        struct FakeAtlas {
+            paste: &'static str,
+        }
+        let kb = FakeAtlas { paste: "D-v" };
+        // Wrap in a function-call to verify the `expr` arm.
+        fn get_atlas(a: FakeAtlas) -> FakeAtlas {
+            a
+        }
+        let hk = atlas_chord!(get_atlas(kb), paste);
+        assert_eq!(hk.modifiers, Modifiers::CMD);
+        assert_eq!(hk.key, Key::V);
+    }
+
+    #[test]
+    #[should_panic(expected = "atlas chord paste = \"BROKEN\" failed")]
+    fn atlas_chord_macro_panic_message_names_field() {
+        struct FakeAtlas {
+            paste: &'static str,
+        }
+        let kb = FakeAtlas { paste: "BROKEN" };
+        let _ = atlas_chord!(kb.paste);
     }
 
     #[test]

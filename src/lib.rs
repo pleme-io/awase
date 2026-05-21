@@ -47,7 +47,10 @@ pub use chord::{ChordState, KeyChord};
 pub use condition::{Condition, MatchContext};
 pub use conflict::{detect_conflicts, ConflictEntry, ConflictReport};
 pub use error::AwaseError;
-pub use hotkey::{Hotkey, Key, Modifiers};
+pub use hotkey::{atlas_hotkey, Hotkey, Key, Modifiers};
+// `atlas_chord!` is exported via `#[macro_export]` and lives at the
+// crate root — `awase::atlas_chord!(kb.copy)` works at any call site
+// without needing the `hotkey::` path qualifier.
 pub use manager::{HotkeyManager, NoopManager};
 pub use mode::{BindingMap, KeyMode, MatchResult};
 pub use remap::KeyRemap;
