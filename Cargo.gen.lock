@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "cargo_lock_sha256": "672c21fbe70d8cca97f3bbf2ca6a45479314e51f8cb2cce1cdbb32dd1e6e2d9b",
+  "cargo_lock_sha256": "c1197540dad2385bf2cd9e492289328b3645b0431f22e567226b1a51c57186bf",
   "target_resolves": {
     "base": {
-      "awase-0.1.0": {
+      "awase-0.1.1": {
         "runtime_dependencies": [
           {
             "name": "serde",
@@ -41,12 +41,12 @@
         "build_dependencies": [],
         "features": []
       },
-      "itoa-1.0.17": {
+      "itoa-1.0.18": {
         "runtime_dependencies": [],
         "build_dependencies": [],
         "features": []
       },
-      "memchr-2.8.0": {
+      "memchr-2.8.2": {
         "runtime_dependencies": [],
         "build_dependencies": [],
         "features": [
@@ -54,7 +54,7 @@
           "std"
         ]
       },
-      "once_cell-1.21.3": {
+      "once_cell-1.21.4": {
         "runtime_dependencies": [],
         "build_dependencies": [],
         "features": [
@@ -194,11 +194,11 @@
           "default"
         ]
       },
-      "serde_json-1.0.149": {
+      "serde_json-1.0.150": {
         "runtime_dependencies": [
           {
             "name": "itoa",
-            "package_key": "itoa-1.0.17",
+            "package_key": "itoa-1.0.18",
             "kind": "normal",
             "features": [],
             "uses_default_features": true,
@@ -208,7 +208,7 @@
           },
           {
             "name": "memchr",
-            "package_key": "memchr-2.8.0",
+            "package_key": "memchr-2.8.2",
             "kind": "normal",
             "features": [],
             "uses_default_features": false,
@@ -433,7 +433,7 @@
         "runtime_dependencies": [
           {
             "name": "once_cell",
-            "package_key": "once_cell-1.21.3",
+            "package_key": "once_cell-1.21.4",
             "kind": "normal",
             "features": [],
             "uses_default_features": true,
@@ -481,20 +481,20 @@
     }
   },
   "per_crate": {
-    "awase-0.1.0": {
+    "awase-0.1.1": {
       "edition": "2024",
       "lib_target": {
         "name": "awase",
         "path": "src/lib.rs"
       }
     },
-    "itoa-1.0.17": {
+    "itoa-1.0.18": {
       "edition": "2021"
     },
-    "memchr-2.8.0": {
+    "memchr-2.8.2": {
       "edition": "2021"
     },
-    "once_cell-1.21.3": {
+    "once_cell-1.21.4": {
       "edition": "2021"
     },
     "pin-project-lite-0.2.17": {
@@ -520,7 +520,7 @@
       "edition": "2021",
       "proc_macro": true
     },
-    "serde_json-1.0.149": {
+    "serde_json-1.0.150": {
       "edition": "2021",
       "build_script": "build.rs"
     },
