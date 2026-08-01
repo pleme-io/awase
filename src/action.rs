@@ -1,6 +1,26 @@
 use serde::{Deserialize, Serialize};
 
-/// An action to perform when a hotkey is triggered.
+/// An action to perform when a hotkey is triggered, as an untyped string.
+///
+/// **Known weak point, kept rather than removed (MODULARIZE-DON'T-DELETE) —
+/// read `theory/QUADRO.md` §T8 before building a new operator surface on it.**
+///
+/// `Command(String)` makes a binding to a *nonexistent* command
+/// representable: it type-checks, it serializes, and it fails silently at
+/// runtime when nothing answers the name. Nothing here can enumerate the
+/// valid commands, so no consumer can derive an exhaustive command palette,
+/// a which-key tree, or an "every intent is bound" check from this type.
+///
+/// Its main intended consumer already declined it: **mado does not use
+/// `awase::Action`.** mado carries its own typed `Action` (`src/keybind.rs`,
+/// `#[derive(KindStr)]`) and consumes awase only for `Hotkey`/`Binding`. So
+/// the fleet holds two intent vocabularies and the weaker one is unused.
+///
+/// Destination (QUADRO §T8): ONE typed intent catalog per app, from which the
+/// enum, palette, binding table, conflict check and docs are all derived —
+/// enabled by `KindStr` emitting `pub const ALL: &[Self]`, a change belonging
+/// in `tatara-rust-derive::KindRoundTripSpec` so every consumer inherits it.
+/// Until then prefer a typed app-local `Action` over this.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Action {
     /// Named command string (consumer interprets).
