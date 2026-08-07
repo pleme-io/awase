@@ -5,12 +5,26 @@ use crate::condition::{Condition, MatchContext};
 use crate::hotkey::Hotkey;
 
 /// A complete keybinding: hotkey + action + consume flag + optional conditions.
+///
+/// # The action type is generic
+///
+/// `A` defaults to [`Action`], so `Binding` on its own still means
+/// `Binding<Action>` and every existing consumer is untouched. The parameter
+/// exists because **an app's action vocabulary is its own** — banken's
+/// postigo verbs, pauta's review effects, a terminal's chrome commands are
+/// domain semantics that must not be forced to unify. Generic here is what
+/// lets the dispatch machinery be shared without the vocabularies being
+/// merged.
+///
+/// `awase::Action` remains the default rather than the requirement: it is a
+/// stringly `Command(String)` shape that mado explicitly declined, and an app
+/// with a real enum should parameterise instead of stringifying into it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Binding {
+pub struct Binding<A = Action> {
     /// The hotkey that triggers this binding.
     pub hotkey: Hotkey,
     /// The action to perform.
-    pub action: Action,
+    pub action: A,
     /// Whether to consume the key event (not pass to the focused app).
     /// Default: `true`.
     #[serde(default = "default_consume")]
@@ -24,10 +38,10 @@ fn default_consume() -> bool {
     true
 }
 
-impl Binding {
+impl<A> Binding<A> {
     /// Create a simple binding with default consume=true and no conditions.
     #[must_use]
-    pub fn new(hotkey: Hotkey, action: Action) -> Self {
+    pub fn new(hotkey: Hotkey, action: A) -> Self {
         Self {
             hotkey,
             action,
