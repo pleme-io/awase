@@ -72,7 +72,7 @@ mod integration_tests {
 
         // -- Default mode bindings --
         let default = map.mode_mut("default").unwrap();
-        default.add_binding(
+        drop(default.add_binding(
             Binding::new(
                 Hotkey::parse("cmd+h").unwrap(),
                 Action::command("focus_west"),
@@ -81,30 +81,30 @@ mod integration_tests {
                 app_exclude: Some("Terminal|ghostty".to_string()),
                 ..Default::default()
             }),
-        );
-        default.add_binding(Binding::new(
+        ));
+        drop(default.add_binding(Binding::new(
             Hotkey::parse("cmd+j").unwrap(),
             Action::command("focus_south"),
-        ));
-        default.add_binding(Binding::new(
+        )));
+        drop(default.add_binding(Binding::new(
             Hotkey::parse("ctrl+alt+r").unwrap(),
             Action::mode_switch("resize"),
-        ));
+        )));
 
         // -- Resize mode --
         let mut resize = KeyMode::new("resize", false);
-        resize.add_binding(Binding::new(
+        drop(resize.add_binding(Binding::new(
             Hotkey::parse("h").unwrap(),
             Action::command("shrink_west"),
-        ));
-        resize.add_binding(Binding::new(
+        )));
+        drop(resize.add_binding(Binding::new(
             Hotkey::parse("l").unwrap(),
             Action::command("grow_east"),
-        ));
-        resize.add_binding(Binding::new(
+        )));
+        drop(resize.add_binding(Binding::new(
             Hotkey::parse("escape").unwrap(),
             Action::mode_switch("default"),
-        ));
+        )));
         map.add_mode(resize);
 
         // -- Chord: ctrl+a -> c = new window --
@@ -207,10 +207,10 @@ mod integration_tests {
     #[test]
     fn conflict_detection_for_wm_scenario() {
         let mut default = KeyMode::new("default", true);
-        default.add_binding(Binding::new(
+        drop(default.add_binding(Binding::new(
             Hotkey::parse("ctrl+a").unwrap(),
             Action::command("select_all"),
-        ));
+        )));
 
         let chord = KeyChord {
             leader: Hotkey::parse("ctrl+a").unwrap(),
@@ -416,10 +416,10 @@ mod integration_tests {
     #[test]
     fn key_mode_debug_includes_fields() {
         let mut mode = mode::KeyMode::new("resize", false);
-        mode.add_binding(binding::Binding::new(
+        drop(mode.add_binding(binding::Binding::new(
             Hotkey::parse("h").unwrap(),
             action::Action::command("shrink"),
-        ));
+        )));
 
         let debug = format!("{mode:?}");
         assert!(debug.contains("resize"));
@@ -586,10 +586,10 @@ mod integration_tests {
     #[test]
     fn conflict_detection_same_leader_multiple_chords() {
         let mut mode = mode::KeyMode::new("default", true);
-        mode.add_binding(binding::Binding::new(
+        drop(mode.add_binding(binding::Binding::new(
             Hotkey::new(Modifiers::CTRL, Key::A),
             action::Action::command("select_all"),
-        ));
+        )));
 
         let chord1 = chord::KeyChord {
             leader: Hotkey::new(Modifiers::CTRL, Key::A),
@@ -614,22 +614,22 @@ mod integration_tests {
     #[test]
     fn list_bindings_respects_current_mode() {
         let mut map = BindingMap::new();
-        map.mode_mut("default").unwrap().add_binding(
+        drop(map.mode_mut("default").unwrap().add_binding(
             binding::Binding::new(
                 Hotkey::parse("cmd+a").unwrap(),
                 action::Action::command("default_action"),
             ),
-        );
+        ));
 
         let mut other = mode::KeyMode::new("other", true);
-        other.add_binding(binding::Binding::new(
+        drop(other.add_binding(binding::Binding::new(
             Hotkey::parse("cmd+b").unwrap(),
             action::Action::command("other_b"),
-        ));
-        other.add_binding(binding::Binding::new(
+        )));
+        drop(other.add_binding(binding::Binding::new(
             Hotkey::parse("cmd+c").unwrap(),
             action::Action::command("other_c"),
-        ));
+        )));
         map.add_mode(other);
 
         // Default mode: 1 binding.

@@ -246,7 +246,7 @@ mod tests {
     #[test]
     fn chord_leader_conflicts_with_binding() {
         let mut mode = KeyMode::new("default", true);
-        mode.add_binding(Binding::new(ctrl_a(), Action::command("select_all")));
+        drop(mode.add_binding(Binding::new(ctrl_a(), Action::command("select_all"))));
 
         let chord = KeyChord {
             leader: ctrl_a(),
@@ -265,10 +265,10 @@ mod tests {
     #[test]
     fn chord_no_conflict_when_leader_not_bound() {
         let mut mode = KeyMode::new("default", true);
-        mode.add_binding(Binding::new(
+        drop(mode.add_binding(Binding::new(
             Hotkey::new(Modifiers::CMD, Key::H),
             Action::command("focus_west"),
-        ));
+        )));
 
         let chord = KeyChord {
             leader: ctrl_a(),
@@ -284,7 +284,7 @@ mod tests {
     #[test]
     fn conflict_in_specific_mode() {
         let mut resize = KeyMode::new("resize", false);
-        resize.add_binding(Binding::new(ctrl_a(), Action::command("shrink")));
+        drop(resize.add_binding(Binding::new(ctrl_a(), Action::command("shrink"))));
 
         let default = KeyMode::new("default", true);
 
@@ -323,7 +323,7 @@ mod tests {
     #[test]
     fn modes_only_no_chords_no_conflicts() {
         let mut mode = KeyMode::new("default", true);
-        mode.add_binding(Binding::new(ctrl_a(), Action::command("test")));
+        drop(mode.add_binding(Binding::new(ctrl_a(), Action::command("test"))));
         let report = detect_conflicts(&[&mode], &[]);
         assert!(report.is_clean());
     }
@@ -331,10 +331,10 @@ mod tests {
     #[test]
     fn same_chord_conflicts_in_multiple_modes() {
         let mut default = KeyMode::new("default", true);
-        default.add_binding(Binding::new(ctrl_a(), Action::command("select_all")));
+        drop(default.add_binding(Binding::new(ctrl_a(), Action::command("select_all"))));
 
         let mut resize = KeyMode::new("resize", false);
-        resize.add_binding(Binding::new(ctrl_a(), Action::command("shrink")));
+        drop(resize.add_binding(Binding::new(ctrl_a(), Action::command("shrink"))));
 
         let chord = KeyChord {
             leader: ctrl_a(),
@@ -353,11 +353,11 @@ mod tests {
     #[test]
     fn multiple_chords_multiple_conflicts() {
         let mut mode = KeyMode::new("default", true);
-        mode.add_binding(Binding::new(ctrl_a(), Action::command("a")));
-        mode.add_binding(Binding::new(
+        drop(mode.add_binding(Binding::new(ctrl_a(), Action::command("a"))));
+        drop(mode.add_binding(Binding::new(
             Hotkey::new(Modifiers::CTRL, Key::B),
             Action::command("b"),
-        ));
+        )));
 
         let chord1 = KeyChord {
             leader: ctrl_a(),
@@ -379,7 +379,7 @@ mod tests {
     #[test]
     fn conflict_entry_contains_hotkey() {
         let mut mode = KeyMode::new("default", true);
-        mode.add_binding(Binding::new(ctrl_a(), Action::command("select_all")));
+        drop(mode.add_binding(Binding::new(ctrl_a(), Action::command("select_all"))));
 
         let chord = KeyChord {
             leader: ctrl_a(),
