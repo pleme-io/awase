@@ -43,6 +43,28 @@ impl Modifiers {
     pub const fn from_bits(bits: u8) -> Self {
         Self(bits)
     }
+
+    /// Combine two modifier sets — the **`const` peer of [`BitOr`]**.
+    ///
+    /// `BitOr` cannot be `const` (trait impls are not), so composing two
+    /// modifiers inside a `const fn` — which is exactly what a `const` atlas
+    /// of [`crate::Gesture`]s must do — has no operator form:
+    ///
+    /// ```
+    /// # use awase::Modifiers;
+    /// const CMD_SHIFT: Modifiers = Modifiers::CMD.with(Modifiers::SHIFT);
+    /// assert!(CMD_SHIFT.contains(Modifiers::CMD));
+    /// assert!(CMD_SHIFT.contains(Modifiers::SHIFT));
+    /// ```
+    ///
+    /// Identical semantics to `a | b`, and a test pins that so the two cannot
+    /// drift into disagreeing.
+    ///
+    /// [`BitOr`]: std::ops::BitOr
+    #[must_use]
+    pub const fn with(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
 }
 
 impl std::ops::BitOr for Modifiers {
@@ -923,6 +945,34 @@ mod tests {
         assert!(mods.contains(Modifiers::SHIFT));
         assert!(!mods.contains(Modifiers::ALT));
         assert!(!mods.contains(Modifiers::CTRL));
+    }
+
+    /// `with` is the `const` peer of `|` and MUST agree with it on every
+    /// input. Two ways to spell one operation is exactly how a divergence
+    /// starts, so this is checked exhaustively over the whole flag space
+    /// rather than on a sampled pair.
+    #[test]
+    fn modifiers_with_agrees_with_bitor_exhaustively() {
+        for a in 0..=u8::MAX {
+            for b in 0..=u8::MAX {
+                let (ma, mb) = (Modifiers::from_bits(a), Modifiers::from_bits(b));
+                assert_eq!(
+                    ma.with(mb),
+                    ma | mb,
+                    "with and BitOr disagree on {a:#010b} / {b:#010b}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn modifiers_with_is_const_usable() {
+        // The property the atlas depends on: composition inside a `const`.
+        // `BitOr` cannot do this, which is the entire reason `with` exists.
+        const CMD_SHIFT: Modifiers = Modifiers::CMD.with(Modifiers::SHIFT);
+        assert!(CMD_SHIFT.contains(Modifiers::CMD));
+        assert!(CMD_SHIFT.contains(Modifiers::SHIFT));
+        assert!(!CMD_SHIFT.contains(Modifiers::CTRL));
     }
 
     #[test]
