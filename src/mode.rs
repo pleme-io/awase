@@ -41,8 +41,69 @@ impl KeyMode {
 
     /// Add a binding to this mode. Returns the previous binding if one
     /// existed for the same hotkey.
+    ///
+    /// **The returned `Some(prev)` IS the duplicate, and it is the only
+    /// evidence that it ever existed.** `bindings` is a `HashMap`, so the
+    /// insert has already destroyed the displaced binding — no later checker
+    /// can recover it (see [`crate::detect_conflicts`]'s doc for why that is
+    /// structural rather than an omission). Dropping this value is therefore
+    /// not a style question: it is last-write-wins, silently, on a binding
+    /// somebody authored.
+    ///
+    /// Use [`Self::try_bind`] when you want that to be an error instead, or
+    /// [`crate::detect_duplicate_bindings`] to check a whole authored list
+    /// before any of it is inserted.
+    #[must_use = "the returned Some(prev) is a DUPLICATE binding being silently \
+                  discarded — handle it, or use `try_bind` to make it an error"]
     pub fn add_binding(&mut self, binding: Binding) -> Option<Binding> {
         self.bindings.insert(binding.hotkey, binding)
+    }
+
+    /// Add a binding, refusing to silently displace an existing one.
+    ///
+    /// The checked peer of [`Self::add_binding`]. This is the shape an
+    /// authoring path wants: two actions on one chord means one of them can
+    /// never fire, and finding that out at build time beats an operator
+    /// finding out that a key does nothing.
+    ///
+    /// # Errors
+    ///
+    /// Returns the displaced [`Binding`] when `binding.hotkey` is already
+    /// bound in this mode. Nothing is inserted in that case — the mode is
+    /// left exactly as it was, so a caller may report and continue.
+    pub fn try_bind(&mut self, binding: Binding) -> Result<(), Box<Binding>> {
+        if let Some(existing) = self.bindings.get(&binding.hotkey) {
+            return Err(Box::new(existing.clone()));
+        }
+        drop(self.bindings.insert(binding.hotkey, binding));
+        Ok(())
+    }
+
+    /// Every binding in this mode, in unspecified order.
+    ///
+    /// The accessor a **derived legend** needs. Without it a help line has to
+    /// be hand-written beside the bindings it describes, and the two drift:
+    /// banken once advertised `S` for a chord bound as `shift+s`, and
+    /// alicerce advertises a `G` that cannot fire at all. A legend built from
+    /// this iterator cannot describe a binding that is not there.
+    ///
+    /// Order is `HashMap` order — deliberately not stabilised here, because a
+    /// legend wants *authored* order, which only the caller knows. Sort by
+    /// whatever the app displays.
+    pub fn iter(&self) -> impl Iterator<Item = (&Hotkey, &Binding)> {
+        self.bindings.iter()
+    }
+
+    /// How many bindings this mode holds.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.bindings.len()
+    }
+
+    /// Whether this mode binds nothing.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.bindings.is_empty()
     }
 
     /// Look up a binding for the given hotkey, filtering by context.
@@ -246,6 +307,88 @@ impl Default for BindingMap {
 }
 
 #[cfg(test)]
+mod try_bind_and_iter_tests {
+    use super::*;
+    use crate::hotkey::{Key, Modifiers};
+
+    fn hk(k: Key) -> Hotkey {
+        Hotkey::new(Modifiers::CMD, k)
+    }
+
+    #[test]
+    fn try_bind_accepts_a_free_hotkey() {
+        let mut m = KeyMode::new("default", true);
+        assert!(
+            m.try_bind(Binding::new(hk(Key::H), Action::command("west")))
+                .is_ok()
+        );
+        assert_eq!(m.len(), 1);
+    }
+
+    #[test]
+    fn try_bind_refuses_to_displace_and_leaves_the_mode_untouched() {
+        // The whole point: `add_binding` would have silently swallowed the
+        // first action. This reports instead — and critically does NOT
+        // half-apply, so a caller can log and carry on.
+        let mut m = KeyMode::new("default", true);
+        m.try_bind(Binding::new(hk(Key::H), Action::command("first")))
+            .expect("first bind is free");
+
+        let err = m
+            .try_bind(Binding::new(hk(Key::H), Action::command("second")))
+            .expect_err("the hotkey is taken");
+
+        assert_eq!(err.action, Action::command("first"), "reports the incumbent");
+        assert_eq!(m.len(), 1, "nothing was added");
+        assert_eq!(
+            m.bindings[&hk(Key::H)].action,
+            Action::command("first"),
+            "the incumbent survived — try_bind must not half-apply"
+        );
+    }
+
+    #[test]
+    fn iter_yields_every_binding() {
+        let mut m = KeyMode::new("default", true);
+        for (k, name) in [(Key::H, "west"), (Key::J, "south"), (Key::K, "north")] {
+            m.try_bind(Binding::new(hk(k), Action::command(name)))
+                .expect("distinct hotkeys");
+        }
+        let seen: Vec<_> = m.iter().collect();
+        assert_eq!(seen.len(), 3);
+        // …and it is the accessor a derived legend needs: every bound chord
+        // is reachable without a second hand-written list.
+        let mut keys: Vec<Hotkey> = m.iter().map(|(h, _)| *h).collect();
+        keys.sort_by_key(Hotkey::display);
+        assert_eq!(keys, vec![hk(Key::H), hk(Key::J), hk(Key::K)]);
+    }
+
+    #[test]
+    fn iter_on_an_empty_mode_yields_nothing() {
+        let m = KeyMode::new("default", true);
+        assert_eq!(m.iter().count(), 0);
+        assert!(m.is_empty());
+        assert_eq!(m.len(), 0);
+    }
+
+    /// A legend built from `iter` cannot describe a chord that is not bound —
+    /// which is the class that produced alicerce's advertised-but-dead `G`
+    /// and banken's historical `S`-vs-`shift+s`.
+    #[test]
+    fn a_legend_derived_from_iter_cannot_outrun_the_bindings() {
+        let mut m = KeyMode::new("default", true);
+        m.try_bind(Binding::new(hk(Key::Q), Action::command("quit")))
+            .expect("free");
+        let legend: Vec<String> = m.iter().map(|(h, _)| h.display()).collect();
+        assert_eq!(legend, vec!["cmd+q".to_owned()]);
+        assert!(
+            !legend.iter().any(|l| l.contains('g')),
+            "a chord nobody bound cannot appear in a derived legend"
+        );
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::hotkey::{Key, Modifiers};
@@ -271,7 +414,7 @@ mod tests {
     #[test]
     fn mode_add_and_find_binding() {
         let mut mode = KeyMode::new("default", true);
-        mode.add_binding(Binding::new(cmd_h(), Action::command("focus_west")));
+        drop(mode.add_binding(Binding::new(cmd_h(), Action::command("focus_west"))));
 
         let found = mode.find_binding(&cmd_h(), &ctx());
         assert!(found.is_some());
@@ -287,13 +430,13 @@ mod tests {
     #[test]
     fn mode_conditional_binding() {
         let mut mode = KeyMode::new("default", true);
-        mode.add_binding(
+        drop(mode.add_binding(
             Binding::new(cmd_h(), Action::command("focus_west"))
                 .with_condition(crate::Condition {
                     app_exclude: Some("Terminal".to_string()),
                     ..Default::default()
                 }),
-        );
+        ));
 
         // Should match when not in Terminal
         let safari_ctx = MatchContext {
@@ -333,9 +476,9 @@ mod tests {
     #[test]
     fn binding_map_match_in_default_mode() {
         let mut map = BindingMap::new();
-        map.mode_mut("default")
+        drop(map.mode_mut("default")
             .unwrap()
-            .add_binding(Binding::new(cmd_h(), Action::command("focus_west")));
+            .add_binding(Binding::new(cmd_h(), Action::command("focus_west"))));
 
         let result = map.match_key(cmd_h(), &ctx());
         assert_eq!(
@@ -360,11 +503,11 @@ mod tests {
 
         // Add a resize mode
         let mut resize = KeyMode::new("resize", false);
-        resize.add_binding(Binding::new(
+        drop(resize.add_binding(Binding::new(
             Hotkey::new(Modifiers::NONE, Key::H),
             Action::command("shrink_west"),
-        ));
-        resize.add_binding(Binding::new(escape(), Action::mode_switch("default")));
+        )));
+        drop(resize.add_binding(Binding::new(escape(), Action::mode_switch("default"))));
         map.add_mode(resize);
 
         // Switch to resize mode
@@ -526,12 +669,12 @@ mod tests {
     #[test]
     fn binding_map_list_bindings() {
         let mut map = BindingMap::new();
-        map.mode_mut("default").unwrap().add_binding(
+        drop(map.mode_mut("default").unwrap().add_binding(
             Binding::new(cmd_h(), Action::command("a")),
-        );
-        map.mode_mut("default").unwrap().add_binding(
+        ));
+        drop(map.mode_mut("default").unwrap().add_binding(
             Binding::new(cmd_j(), Action::command("b")),
-        );
+        ));
 
         let bindings = map.list_bindings();
         assert_eq!(bindings.len(), 2);
@@ -561,9 +704,9 @@ mod tests {
             to: esc,
             condition: None,
         });
-        map.mode_mut("default")
+        drop(map.mode_mut("default")
             .unwrap()
-            .add_binding(Binding::new(caps, Action::command("should_not_match")));
+            .add_binding(Binding::new(caps, Action::command("should_not_match"))));
 
         // Remap should take priority
         let result = map.match_key(caps, &ctx());
@@ -611,9 +754,9 @@ mod tests {
         let mut map = BindingMap::new();
 
         // Add binding only in default mode
-        map.mode_mut("default")
+        drop(map.mode_mut("default")
             .unwrap()
-            .add_binding(Binding::new(cmd_h(), Action::command("default_action")));
+            .add_binding(Binding::new(cmd_h(), Action::command("default_action"))));
 
         // Add a second mode without that binding
         map.add_mode(KeyMode::new("other", true));
@@ -631,9 +774,9 @@ mod tests {
     #[test]
     fn binding_map_non_consuming_binding() {
         let mut map = BindingMap::new();
-        map.mode_mut("default")
+        drop(map.mode_mut("default")
             .unwrap()
-            .add_binding(Binding::new(cmd_h(), Action::command("passthrough")).with_consume(false));
+            .add_binding(Binding::new(cmd_h(), Action::command("passthrough")).with_consume(false)));
 
         let result = map.match_key(cmd_h(), &ctx());
         assert_eq!(
@@ -648,13 +791,13 @@ mod tests {
     #[test]
     fn binding_map_conditional_binding_in_mode() {
         let mut map = BindingMap::new();
-        map.mode_mut("default").unwrap().add_binding(
+        drop(map.mode_mut("default").unwrap().add_binding(
             Binding::new(cmd_h(), Action::command("focus_west"))
                 .with_condition(crate::Condition {
                     app: Some("Safari".to_string()),
                     ..Default::default()
                 }),
-        );
+        ));
 
         // Match in Safari
         let safari_ctx = MatchContext {
@@ -838,9 +981,9 @@ mod tests {
         let plain_c = Hotkey::new(Modifiers::NONE, Key::C);
 
         // Add a binding for ctrl+a in default mode
-        map.mode_mut("default")
+        drop(map.mode_mut("default")
             .unwrap()
-            .add_binding(Binding::new(ctrl_a, Action::command("select_all")));
+            .add_binding(Binding::new(ctrl_a, Action::command("select_all"))));
 
         // Also add a chord with ctrl+a as leader
         map.add_chord(crate::chord::KeyChord {
@@ -874,7 +1017,7 @@ mod tests {
         let mut map = BindingMap::new();
 
         let mut mode1 = KeyMode::new("default", true);
-        mode1.add_binding(Binding::new(cmd_h(), Action::command("a")));
+        drop(mode1.add_binding(Binding::new(cmd_h(), Action::command("a"))));
         map.add_mode(mode1);
 
         // Replace default mode with empty one
