@@ -194,6 +194,34 @@ pub enum Key {
 }
 
 impl Key {
+    /// Parse a single key name, case-insensitively — **the public door onto
+    /// awase's key vocabulary.**
+    ///
+    /// Exists so a delivery adapter (crossterm, winit, madori, CGEvent) can
+    /// translate its own key type into a [`Key`] without re-tabling the
+    /// vocabulary on its own side. The fleet audit counted eight near-copies
+    /// of exactly that table; each one is a place the two spellings can
+    /// drift, and drift here is a key that silently never fires.
+    ///
+    /// Accepts both the canonical name and the literal character where one
+    /// exists (`"slash"` and `"/"`, `"minus"` and `"-"`), so an adapter
+    /// holding a `char` can hand it straight over:
+    ///
+    /// ```
+    /// # use awase::Key;
+    /// assert_eq!(Key::from_name("q"), Some(Key::Q));
+    /// assert_eq!(Key::from_name("/"), Some(Key::Slash));
+    /// assert_eq!(Key::from_name("Escape"), Some(Key::Escape));
+    /// assert_eq!(Key::from_name("nonsense"), None);
+    /// ```
+    ///
+    /// A `None` is a refusal, never a guess — the caller must decide what an
+    /// unmappable key means rather than receive a plausible wrong one.
+    #[must_use]
+    pub fn from_name(s: &str) -> Option<Self> {
+        Self::parse(s)
+    }
+
     /// Parse a single key name (case-insensitive).
     pub(crate) fn parse(s: &str) -> Option<Self> {
         match s.to_ascii_lowercase().as_str() {
