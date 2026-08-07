@@ -46,7 +46,9 @@ pub use action::Action;
 pub use binding::Binding;
 pub use chord::{ChordState, KeyChord};
 pub use condition::{Condition, MatchContext};
-pub use conflict::{detect_conflicts, ConflictEntry, ConflictReport};
+pub use conflict::{
+    detect_conflicts, detect_duplicate_bindings, ConflictEntry, ConflictReport,
+};
 pub use error::AwaseError;
 pub use gesture::Gesture;
 pub use hotkey::{atlas_hotkey, Hotkey, Key, Modifiers};
