@@ -55,7 +55,10 @@ impl ConflictReport {
 /// hand-rolled that check over `add_binding`'s returned `Some(prev)`; this is
 /// that mechanism, lifted so nobody else has to rediscover it.
 #[must_use]
-pub fn detect_conflicts(modes: &[&KeyMode], chords: &[KeyChord]) -> ConflictReport {
+pub fn detect_conflicts<A: std::fmt::Debug>(
+    modes: &[&KeyMode<A>],
+    chords: &[KeyChord<A>],
+) -> ConflictReport {
     let mut report = ConflictReport::default();
 
     // Chord leaders vs mode bindings.
@@ -113,7 +116,10 @@ pub fn detect_conflicts(modes: &[&KeyMode], chords: &[KeyChord]) -> ConflictRepo
 /// assert!(!report.is_clean(), "the second binding would be silently lost");
 /// ```
 #[must_use]
-pub fn detect_duplicate_bindings(mode: &str, bindings: &[Binding]) -> ConflictReport {
+pub fn detect_duplicate_bindings<A: std::fmt::Debug>(
+    mode: &str,
+    bindings: &[Binding<A>],
+) -> ConflictReport {
     let mut report = ConflictReport::default();
     for (i, binding) in bindings.iter().enumerate() {
         for prior in &bindings[..i] {
@@ -304,7 +310,9 @@ mod tests {
 
     #[test]
     fn no_modes_no_conflicts() {
-        let report = detect_conflicts(&[], &[]);
+        // Both slices empty: `A` is genuinely unconstrained here, so it
+        // must be named. A real caller passes real data and infers.
+        let report = detect_conflicts::<Action>(&[], &[]);
         assert!(report.is_clean());
     }
 

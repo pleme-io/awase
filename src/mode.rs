@@ -13,11 +13,11 @@ use crate::hotkey::Hotkey;
 /// Inspired by skhd's mode system. Modes allow different sets of
 /// keybindings to be active at different times (e.g. "default" vs "resize").
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KeyMode {
+pub struct KeyMode<A = Action> {
     /// Mode name (e.g. "default", "resize").
     pub name: String,
     /// Bindings indexed by hotkey for fast lookup.
-    pub bindings: HashMap<Hotkey, Binding>,
+    pub bindings: HashMap<Hotkey, Binding<A>>,
     /// When `true`, unmatched keys pass through to the focused app.
     /// When `false`, all keys are consumed (modal, like vim normal mode).
     #[serde(default = "default_passthrough")]
@@ -28,10 +28,35 @@ fn default_passthrough() -> bool {
     true
 }
 
-impl KeyMode {
-    /// Create a new empty mode.
+impl KeyMode<Action> {
+    /// Create a new empty mode over the default [`Action`] vocabulary.
+    ///
+    /// **Deliberately on the concrete impl, not the generic one.** A default
+    /// type parameter (`KeyMode<A = Action>`) applies when the type is
+    /// *written*, not when it is *inferred* from an associated function — so
+    /// a generic `new` would make every existing `let m = KeyMode::new(…)`
+    /// fail with "type annotations needed". Keeping `new` concrete is what
+    /// makes this generalization additive: the 19 consumers compile untouched.
+    ///
+    /// For any other action type use [`KeyMode::typed`].
     #[must_use]
     pub fn new(name: impl Into<String>, passthrough: bool) -> Self {
+        Self::typed(name, passthrough)
+    }
+}
+
+impl<A> KeyMode<A> {
+    /// Create a new empty mode over an app's own action type.
+    ///
+    /// ```
+    /// # use awase::KeyMode;
+    /// #[derive(Clone, PartialEq, Debug)]
+    /// enum MyAction { Quit, Search }
+    /// let mode: KeyMode<MyAction> = KeyMode::typed("default", true);
+    /// assert!(mode.is_empty());
+    /// ```
+    #[must_use]
+    pub fn typed(name: impl Into<String>, passthrough: bool) -> Self {
         Self {
             name: name.into(),
             bindings: HashMap::new(),
@@ -55,7 +80,7 @@ impl KeyMode {
     /// before any of it is inserted.
     #[must_use = "the returned Some(prev) is a DUPLICATE binding being silently \
                   discarded — handle it, or use `try_bind` to make it an error"]
-    pub fn add_binding(&mut self, binding: Binding) -> Option<Binding> {
+    pub fn add_binding(&mut self, binding: Binding<A>) -> Option<Binding<A>> {
         self.bindings.insert(binding.hotkey, binding)
     }
 
@@ -71,7 +96,10 @@ impl KeyMode {
     /// Returns the displaced [`Binding`] when `binding.hotkey` is already
     /// bound in this mode. Nothing is inserted in that case — the mode is
     /// left exactly as it was, so a caller may report and continue.
-    pub fn try_bind(&mut self, binding: Binding) -> Result<(), Box<Binding>> {
+    pub fn try_bind(&mut self, binding: Binding<A>) -> Result<(), Box<Binding<A>>>
+    where
+        A: Clone,
+    {
         if let Some(existing) = self.bindings.get(&binding.hotkey) {
             return Err(Box::new(existing.clone()));
         }
@@ -90,7 +118,7 @@ impl KeyMode {
     /// Order is `HashMap` order — deliberately not stabilised here, because a
     /// legend wants *authored* order, which only the caller knows. Sort by
     /// whatever the app displays.
-    pub fn iter(&self) -> impl Iterator<Item = (&Hotkey, &Binding)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&Hotkey, &Binding<A>)> {
         self.bindings.iter()
     }
 
@@ -108,7 +136,7 @@ impl KeyMode {
 
     /// Look up a binding for the given hotkey, filtering by context.
     #[must_use]
-    pub fn find_binding(&self, hotkey: &Hotkey, ctx: &MatchContext) -> Option<&Binding> {
+    pub fn find_binding(&self, hotkey: &Hotkey, ctx: &MatchContext) -> Option<&Binding<A>> {
         self.bindings
             .get(hotkey)
             .filter(|b| b.matches_context(ctx))
@@ -117,9 +145,9 @@ impl KeyMode {
 
 /// Result of matching a key event against the binding map.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum MatchResult {
+pub enum MatchResult<A = Action> {
     /// A binding matched — perform the action.
-    Matched { action: Action, consume: bool },
+    Matched { action: A, consume: bool },
     /// A chord leader was pressed — waiting for follower.
     ChordPending { leader: Hotkey, timeout_ms: u32 },
     /// A remap was applied — the key should be re-emitted as a different key.
@@ -130,23 +158,32 @@ pub enum MatchResult {
 
 /// The main binding map: mode-aware lookup with chord and remap support.
 #[derive(Debug)]
-pub struct BindingMap {
-    modes: HashMap<String, KeyMode>,
-    chords: Vec<KeyChord>,
+pub struct BindingMap<A = Action> {
+    modes: HashMap<String, KeyMode<A>>,
+    chords: Vec<KeyChord<A>>,
     remaps: Vec<crate::remap::KeyRemap>,
     current_mode: String,
     chord_state: crate::chord::ChordState,
 }
 
-impl BindingMap {
-    /// Create a new binding map with a default mode.
+impl BindingMap<Action> {
+    /// Create a new binding map over the default [`Action`] vocabulary.
+    ///
+    /// Concrete for the same reason as [`KeyMode::new`] — see its doc. Use
+    /// [`BindingMap::typed`] for an app's own action type.
     #[must_use]
     pub fn new() -> Self {
+        Self::typed()
+    }
+}
+
+impl<A: Clone> BindingMap<A> {
+    /// Create a new binding map over an app's own action type, with a
+    /// default mode.
+    #[must_use]
+    pub fn typed() -> Self {
         let mut modes = HashMap::new();
-        modes.insert(
-            "default".to_string(),
-            KeyMode::new("default", true),
-        );
+        modes.insert("default".to_string(), KeyMode::typed("default", true));
         Self {
             modes,
             chords: Vec::new(),
@@ -174,24 +211,24 @@ impl BindingMap {
     }
 
     /// Add or replace a mode.
-    pub fn add_mode(&mut self, mode: KeyMode) {
+    pub fn add_mode(&mut self, mode: KeyMode<A>) {
         self.modes.insert(mode.name.clone(), mode);
     }
 
     /// Get a mutable reference to a mode by name.
     #[must_use]
-    pub fn mode_mut(&mut self, name: &str) -> Option<&mut KeyMode> {
+    pub fn mode_mut(&mut self, name: &str) -> Option<&mut KeyMode<A>> {
         self.modes.get_mut(name)
     }
 
     /// Get a reference to a mode by name.
     #[must_use]
-    pub fn mode(&self, name: &str) -> Option<&KeyMode> {
+    pub fn mode(&self, name: &str) -> Option<&KeyMode<A>> {
         self.modes.get(name)
     }
 
     /// Add a chord definition.
-    pub fn add_chord(&mut self, chord: KeyChord) {
+    pub fn add_chord(&mut self, chord: KeyChord<A>) {
         self.chords.push(chord);
     }
 
@@ -212,7 +249,7 @@ impl BindingMap {
         &mut self,
         hotkey: Hotkey,
         ctx: &MatchContext,
-    ) -> MatchResult {
+    ) -> MatchResult<A> {
         // 1. Check remaps
         for remap in &self.remaps {
             if remap.from == hotkey {
@@ -281,7 +318,7 @@ impl BindingMap {
 
     /// List all bindings in the current mode.
     #[must_use]
-    pub fn list_bindings(&self) -> Vec<(&Hotkey, &Action)> {
+    pub fn list_bindings(&self) -> Vec<(&Hotkey, &A)> {
         self.modes
             .get(&self.current_mode)
             .map(|m| {
@@ -303,6 +340,77 @@ impl BindingMap {
 impl Default for BindingMap {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod foreign_action_tests {
+    //! The point of the generic parameter: an app dispatches its OWN action
+    //! enum through awase's machinery without stringifying into
+    //! `awase::Action`. banken's postigo verbs and pauta's review effects are
+    //! domain semantics; forcing them to unify would be the regression.
+    use super::*;
+    use crate::hotkey::{Key, Modifiers};
+
+    /// Stands in for an app's real vocabulary — a plain enum, no relation to
+    /// `awase::Action` and no `String` anywhere.
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    enum AppAction {
+        Quit,
+        SelectNext,
+    }
+
+    #[test]
+    fn a_foreign_action_type_dispatches_end_to_end() {
+        let mut map: BindingMap<AppAction> = BindingMap::typed();
+        let mode = map.mode_mut("default").expect("default mode exists");
+        mode.try_bind(Binding::new(
+            Hotkey::new(Modifiers::NONE, Key::Q),
+            AppAction::Quit,
+        ))
+        .expect("free hotkey");
+        mode.try_bind(Binding::new(
+            Hotkey::new(Modifiers::NONE, Key::J),
+            AppAction::SelectNext,
+        ))
+        .expect("free hotkey");
+
+        let hit = map.match_key(Hotkey::new(Modifiers::NONE, Key::Q), &MatchContext::default());
+        assert_eq!(
+            hit,
+            MatchResult::Matched {
+                action: AppAction::Quit,
+                consume: true,
+            },
+            "the app's own enum came back out of the matcher"
+        );
+
+        let miss = map.match_key(Hotkey::new(Modifiers::NONE, Key::Z), &MatchContext::default());
+        assert_eq!(miss, MatchResult::NoMatch, "and a miss is still a miss");
+    }
+
+    #[test]
+    fn the_conflict_checkers_work_over_a_foreign_action_type() {
+        let hk = Hotkey::new(Modifiers::NONE, Key::Q);
+        let report = crate::detect_duplicate_bindings(
+            "default",
+            &[
+                Binding::new(hk, AppAction::Quit),
+                Binding::new(hk, AppAction::SelectNext),
+            ],
+        );
+        assert_eq!(report.conflicts.len(), 1);
+    }
+
+    #[test]
+    fn the_default_parameter_still_means_action() {
+        // The additive guarantee: unannotated `new` resolves to `Action`, so
+        // every existing consumer keeps compiling. If this stops inferring,
+        // the generalization has broken 19 repos.
+        let m = KeyMode::new("default", true);
+        let _: &KeyMode<Action> = &m;
+        let map = BindingMap::new();
+        let _: &BindingMap<Action> = &map;
     }
 }
 

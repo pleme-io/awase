@@ -8,7 +8,7 @@ use crate::hotkey::Hotkey;
 /// A two-step key chord: leader key activates chord mode, then a follower
 /// key within the timeout triggers an action.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct KeyChord {
+pub struct KeyChord<A = Action> {
     /// The leader hotkey that activates chord mode.
     pub leader: Hotkey,
     /// The follower hotkey that completes the chord.
@@ -16,7 +16,7 @@ pub struct KeyChord {
     /// Timeout in milliseconds after the leader key before the chord is cancelled.
     pub timeout_ms: u32,
     /// The action to perform when the chord is completed.
-    pub action: Action,
+    pub action: A,
 }
 
 /// Internal state machine for tracking chord input.
