@@ -197,15 +197,29 @@ impl Key {
     /// Parse a single key name, case-insensitively — **the public door onto
     /// awase's key vocabulary.**
     ///
-    /// Exists so a delivery adapter (crossterm, winit, madori, CGEvent) can
+    /// Exists so a delivery adapter (crossterm, winit, madori, `CGEvent`) can
     /// translate its own key type into a [`Key`] without re-tabling the
     /// vocabulary on its own side. The fleet audit counted eight near-copies
     /// of exactly that table; each one is a place the two spellings can
     /// drift, and drift here is a key that silently never fires.
     ///
-    /// Accepts both the canonical name and the literal character where one
-    /// exists (`"slash"` and `"/"`, `"minus"` and `"-"`), so an adapter
-    /// holding a `char` can hand it straight over:
+    /// Accepts the canonical name, the literal character, **and the shifted
+    /// glyph of the same physical key** (`"slash"`, `"/"` and `"?"` all give
+    /// [`Key::Slash`]) — matching what the enum's own comments have always
+    /// declared (`Slash, // / / ?`).
+    ///
+    /// The shifted glyphs matter because a terminal reports them as the
+    /// character, not the base key: pressing shift+`/` arrives as `'?'`.
+    /// Without these an adapter must either hold a US-layout translation
+    /// table of its own — a layout assumption in the wrong place — or drop
+    /// the key, which is how a `?` help binding silently dies.
+    ///
+    /// Note this is deliberately **not** a claim about layout. `Key` names a
+    /// physical key; `?` and `/` are two glyphs on one key here as they are
+    /// on the enum. An adapter that needs to distinguish them reads the
+    /// shift modifier, which is delivered separately.
+    ///
+    /// So an adapter holding a `char` can hand it straight over:
     ///
     /// ```
     /// # use awase::Key;
@@ -306,17 +320,17 @@ impl Key {
             "pagedown" | "page_down" | "pgdn" => Some(Self::PageDown),
 
             // Punctuation / symbols
-            "grave" | "`" | "backtick" => Some(Self::Grave),
-            "minus" | "-" => Some(Self::Minus),
-            "equal" | "equals" | "=" => Some(Self::Equal),
-            "leftbracket" | "left_bracket" | "[" => Some(Self::LeftBracket),
-            "rightbracket" | "right_bracket" | "]" => Some(Self::RightBracket),
-            "backslash" | "\\" => Some(Self::Backslash),
-            "semicolon" | ";" => Some(Self::Semicolon),
-            "quote" | "'" => Some(Self::Quote),
-            "comma" | "," => Some(Self::Comma),
-            "period" | "." => Some(Self::Period),
-            "slash" | "/" => Some(Self::Slash),
+            "grave" | "`" | "~" | "backtick" => Some(Self::Grave),
+            "minus" | "-" | "_" => Some(Self::Minus),
+            "equal" | "equals" | "=" | "+" => Some(Self::Equal),
+            "leftbracket" | "left_bracket" | "[" | "{" => Some(Self::LeftBracket),
+            "rightbracket" | "right_bracket" | "]" | "}" => Some(Self::RightBracket),
+            "backslash" | "\\" | "|" => Some(Self::Backslash),
+            "semicolon" | ";" | ":" => Some(Self::Semicolon),
+            "quote" | "'" | "\"" => Some(Self::Quote),
+            "comma" | "," | "<" => Some(Self::Comma),
+            "period" | "." | ">" => Some(Self::Period),
+            "slash" | "/" | "?" => Some(Self::Slash),
 
             // Numpad
             "numpad0" | "kp0" => Some(Self::Numpad0),
@@ -991,6 +1005,41 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Every punctuation key accepts its shifted glyph, because a terminal
+    /// reports the GLYPH and not the base key. Without this a `?` binding
+    /// (help, in most TUIs) has no typed value and silently dies.
+    #[test]
+    fn shifted_punctuation_glyphs_resolve_to_their_base_key() {
+        for (shifted, base, want) in [
+            ("?", "/", Key::Slash),
+            (":", ";", Key::Semicolon),
+            ("\"", "'", Key::Quote),
+            ("<", ",", Key::Comma),
+            (">", ".", Key::Period),
+            ("{", "[", Key::LeftBracket),
+            ("}", "]", Key::RightBracket),
+            ("|", "\\", Key::Backslash),
+            ("~", "`", Key::Grave),
+            ("_", "-", Key::Minus),
+            ("+", "=", Key::Equal),
+        ] {
+            assert_eq!(Key::from_name(shifted), Some(want), "shifted `{shifted}`");
+            assert_eq!(
+                Key::from_name(base),
+                Some(want),
+                "and the base glyph `{base}` still resolves to the same key"
+            );
+        }
+    }
+
+    #[test]
+    fn an_unknown_key_name_is_still_refused() {
+        // Non-vacuity: widening the punctuation arms must not make the parser
+        // accept anything at all.
+        assert_eq!(Key::from_name("nonsense"), None);
+        assert_eq!(Key::from_name("§"), None);
     }
 
     #[test]
