@@ -34,6 +34,7 @@ pub mod chord;
 pub mod condition;
 pub mod conflict;
 mod error;
+pub mod gesture;
 mod hotkey;
 mod manager;
 pub mod mode;
@@ -47,6 +48,7 @@ pub use chord::{ChordState, KeyChord};
 pub use condition::{Condition, MatchContext};
 pub use conflict::{detect_conflicts, ConflictEntry, ConflictReport};
 pub use error::AwaseError;
+pub use gesture::Gesture;
 pub use hotkey::{atlas_hotkey, Hotkey, Key, Modifiers};
 // `atlas_chord!` is exported via `#[macro_export]` and lives at the
 // crate root — `awase::atlas_chord!(kb.copy)` works at any call site
