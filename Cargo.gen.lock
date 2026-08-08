@@ -1,12 +1,12 @@
 {
   "schema_version": 2,
-  "cargo_lock_sha256": "67988931eabeaa8fc1e0e431ef262f82d04cfae09b62a9f8e205b4e0c2da0522",
+  "cargo_lock_sha256": "93dd82ab11cd8b93f6e474ac73846492e176b00c476fa41f8bafd78ba40dd889",
   "manifest_sha256": {
-    "Cargo.toml": "e297a9e8bc4d5d10458a6b6d28fc1f9d08e850f787b7daaa5d16c5920d512d0e"
+    "Cargo.toml": "18d743704c1424eaca4f9b3aa7c2b13cdcfbf667d7416b864ade294e48a5def9"
   },
   "target_resolves": {
     "base": {
-      "awase-0.1.7": {
+      "awase-0.1.8": {
         "runtime_dependencies": [
           {
             "name": "serde",
@@ -22,7 +22,7 @@
           },
           {
             "name": "thiserror",
-            "package_key": "thiserror-2.0.19",
+            "package_key": "thiserror-2.0.20",
             "kind": "normal",
             "features": [],
             "uses_default_features": true,
@@ -335,11 +335,11 @@
           "proc-macro"
         ]
       },
-      "thiserror-2.0.19": {
+      "thiserror-2.0.20": {
         "runtime_dependencies": [
           {
             "name": "thiserror_impl",
-            "package_key": "thiserror-impl-2.0.19",
+            "package_key": "thiserror-impl-2.0.20",
             "kind": "normal",
             "features": [],
             "uses_default_features": true,
@@ -354,7 +354,7 @@
           "std"
         ]
       },
-      "thiserror-impl-2.0.19": {
+      "thiserror-impl-2.0.20": {
         "runtime_dependencies": [
           {
             "name": "proc_macro2",
@@ -527,7 +527,7 @@
     }
   },
   "per_crate": {
-    "awase-0.1.7": {
+    "awase-0.1.8": {
       "edition": "2024",
       "lib_target": {
         "name": "awase",
@@ -576,11 +576,11 @@
     "syn-3.0.3": {
       "edition": "2021"
     },
-    "thiserror-2.0.19": {
+    "thiserror-2.0.20": {
       "edition": "2021",
       "build_script": "build.rs"
     },
-    "thiserror-impl-2.0.19": {
+    "thiserror-impl-2.0.20": {
       "edition": "2021",
       "proc_macro": true
     },
