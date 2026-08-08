@@ -36,29 +36,31 @@ pub mod conflict;
 mod error;
 pub mod gesture;
 mod hotkey;
+pub mod macos;
 mod manager;
 pub mod mode;
-pub mod macos;
 pub mod remap;
 pub mod repeat_gate;
+/// Chords the WORLD owns — what no application may bind. Distinct from
+/// `conflict`, which asks whether two of MY bindings collide.
+pub mod reserved;
 
 pub use action::Action;
 pub use binding::Binding;
 pub use chord::{ChordState, KeyChord};
 pub use condition::{Condition, MatchContext};
-pub use conflict::{
-    detect_conflicts, detect_duplicate_bindings, ConflictEntry, ConflictReport,
-};
+pub use conflict::{ConflictEntry, ConflictReport, detect_conflicts, detect_duplicate_bindings};
 pub use error::AwaseError;
 pub use gesture::Gesture;
-pub use hotkey::{atlas_hotkey, Hotkey, Key, Modifiers};
+pub use hotkey::{Hotkey, Key, Modifiers, atlas_hotkey};
 // `atlas_chord!` is exported via `#[macro_export]` and lives at the
 // crate root — `awase::atlas_chord!(kb.copy)` works at any call site
 // without needing the `hotkey::` path qualifier.
 pub use manager::{HotkeyManager, NoopManager};
-pub use mode::{BindingMap, KeyMode, MatchResult};
+pub use mode::{BindRefusal, BindingMap, KeyMode, MatchResult};
 pub use remap::KeyRemap;
-pub use repeat_gate::{KeyRepeatGate, DEFAULT_MIN_INTERVAL};
+pub use repeat_gate::{DEFAULT_MIN_INTERVAL, KeyRepeatGate};
+pub use reserved::{Claim, Owner, Reserved};
 
 #[cfg(test)]
 mod integration_tests {
@@ -72,16 +74,18 @@ mod integration_tests {
 
         // -- Default mode bindings --
         let default = map.mode_mut("default").unwrap();
-        drop(default.add_binding(
-            Binding::new(
-                Hotkey::parse("cmd+h").unwrap(),
-                Action::command("focus_west"),
-            )
-            .with_condition(Condition {
-                app_exclude: Some("Terminal|ghostty".to_string()),
-                ..Default::default()
-            }),
-        ));
+        drop(
+            default.add_binding(
+                Binding::new(
+                    Hotkey::parse("cmd+h").unwrap(),
+                    Action::command("focus_west"),
+                )
+                .with_condition(Condition {
+                    app_exclude: Some("Terminal|ghostty".to_string()),
+                    ..Default::default()
+                }),
+            ),
+        );
         drop(default.add_binding(Binding::new(
             Hotkey::parse("cmd+j").unwrap(),
             Action::command("focus_south"),
@@ -468,13 +472,16 @@ mod integration_tests {
         let mut map = BindingMap::new();
 
         // Remap capslock -> ctrl in Terminal only.
-        map.add_remap(remap::KeyRemap::new(
-            Hotkey::new(Modifiers::NONE, Key::CapsLock),
-            Hotkey::new(Modifiers::NONE, Key::Escape),
-        ).with_condition(Condition {
-            app: Some("Terminal".to_string()),
-            ..Default::default()
-        }));
+        map.add_remap(
+            remap::KeyRemap::new(
+                Hotkey::new(Modifiers::NONE, Key::CapsLock),
+                Hotkey::new(Modifiers::NONE, Key::Escape),
+            )
+            .with_condition(Condition {
+                app: Some("Terminal".to_string()),
+                ..Default::default()
+            }),
+        );
 
         // Remap capslock -> tab unconditionally (fallback).
         map.add_remap(remap::KeyRemap::new(
@@ -570,7 +577,8 @@ mod integration_tests {
         let remap = remap::KeyRemap::new(
             Hotkey::new(Modifiers::HYPER, Key::Space),
             Hotkey::new(Modifiers::CMD | Modifiers::SHIFT, Key::F12),
-        ).with_condition(Condition {
+        )
+        .with_condition(Condition {
             app: Some("Safari|Chrome".to_string()),
             app_exclude: Some("Firefox".to_string()),
             title: Some("Dashboard".to_string()),
@@ -607,19 +615,26 @@ mod integration_tests {
         // Both chords conflict with the same binding.
         let report = detect_conflicts(&[&mode], &[chord1, chord2]);
         assert_eq!(report.conflicts.len(), 2);
-        assert!(report.conflicts.iter().all(|c| c.hotkey == Hotkey::new(Modifiers::CTRL, Key::A)));
+        assert!(
+            report
+                .conflicts
+                .iter()
+                .all(|c| c.hotkey == Hotkey::new(Modifiers::CTRL, Key::A))
+        );
     }
 
     /// BindingMap::list_bindings respects mode isolation: only shows current mode.
     #[test]
     fn list_bindings_respects_current_mode() {
         let mut map = BindingMap::new();
-        drop(map.mode_mut("default").unwrap().add_binding(
-            binding::Binding::new(
-                Hotkey::parse("cmd+a").unwrap(),
-                action::Action::command("default_action"),
-            ),
-        ));
+        drop(
+            map.mode_mut("default")
+                .unwrap()
+                .add_binding(binding::Binding::new(
+                    Hotkey::parse("cmd+a").unwrap(),
+                    action::Action::command("default_action"),
+                )),
+        );
 
         let mut other = mode::KeyMode::new("other", true);
         drop(other.add_binding(binding::Binding::new(

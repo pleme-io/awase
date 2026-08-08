@@ -118,15 +118,66 @@ impl fmt::Display for Modifiers {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Key {
     // Letters
-    A, B, C, D, E, F, G, H, I, J, K, L, M,
-    N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
+    U,
+    V,
+    W,
+    X,
+    Y,
+    Z,
 
     // Numbers
-    Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9,
+    Num0,
+    Num1,
+    Num2,
+    Num3,
+    Num4,
+    Num5,
+    Num6,
+    Num7,
+    Num8,
+    Num9,
 
     // Function keys
-    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
-    F13, F14, F15, F16, F17, F18, F19, F20,
+    F1,
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
+    F10,
+    F11,
+    F12,
+    F13,
+    F14,
+    F15,
+    F16,
+    F17,
+    F18,
+    F19,
+    F20,
 
     // Whitespace / control
     Space,
@@ -160,8 +211,16 @@ pub enum Key {
     Slash,        // / / ?
 
     // Numpad
-    Numpad0, Numpad1, Numpad2, Numpad3, Numpad4,
-    Numpad5, Numpad6, Numpad7, Numpad8, Numpad9,
+    Numpad0,
+    Numpad1,
+    Numpad2,
+    Numpad3,
+    Numpad4,
+    Numpad5,
+    Numpad6,
+    Numpad7,
+    Numpad8,
+    Numpad9,
     NumpadAdd,
     NumpadSubtract,
     NumpadMultiply,
@@ -382,28 +441,66 @@ impl fmt::Display for Key {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
             // Letters
-            Self::A => "a", Self::B => "b", Self::C => "c", Self::D => "d",
-            Self::E => "e", Self::F => "f", Self::G => "g", Self::H => "h",
-            Self::I => "i", Self::J => "j", Self::K => "k", Self::L => "l",
-            Self::M => "m", Self::N => "n", Self::O => "o", Self::P => "p",
-            Self::Q => "q", Self::R => "r", Self::S => "s", Self::T => "t",
-            Self::U => "u", Self::V => "v", Self::W => "w", Self::X => "x",
-            Self::Y => "y", Self::Z => "z",
+            Self::A => "a",
+            Self::B => "b",
+            Self::C => "c",
+            Self::D => "d",
+            Self::E => "e",
+            Self::F => "f",
+            Self::G => "g",
+            Self::H => "h",
+            Self::I => "i",
+            Self::J => "j",
+            Self::K => "k",
+            Self::L => "l",
+            Self::M => "m",
+            Self::N => "n",
+            Self::O => "o",
+            Self::P => "p",
+            Self::Q => "q",
+            Self::R => "r",
+            Self::S => "s",
+            Self::T => "t",
+            Self::U => "u",
+            Self::V => "v",
+            Self::W => "w",
+            Self::X => "x",
+            Self::Y => "y",
+            Self::Z => "z",
 
             // Numbers
-            Self::Num0 => "0", Self::Num1 => "1", Self::Num2 => "2",
-            Self::Num3 => "3", Self::Num4 => "4", Self::Num5 => "5",
-            Self::Num6 => "6", Self::Num7 => "7", Self::Num8 => "8",
+            Self::Num0 => "0",
+            Self::Num1 => "1",
+            Self::Num2 => "2",
+            Self::Num3 => "3",
+            Self::Num4 => "4",
+            Self::Num5 => "5",
+            Self::Num6 => "6",
+            Self::Num7 => "7",
+            Self::Num8 => "8",
             Self::Num9 => "9",
 
             // Function keys
-            Self::F1 => "f1", Self::F2 => "f2", Self::F3 => "f3",
-            Self::F4 => "f4", Self::F5 => "f5", Self::F6 => "f6",
-            Self::F7 => "f7", Self::F8 => "f8", Self::F9 => "f9",
-            Self::F10 => "f10", Self::F11 => "f11", Self::F12 => "f12",
-            Self::F13 => "f13", Self::F14 => "f14", Self::F15 => "f15",
-            Self::F16 => "f16", Self::F17 => "f17", Self::F18 => "f18",
-            Self::F19 => "f19", Self::F20 => "f20",
+            Self::F1 => "f1",
+            Self::F2 => "f2",
+            Self::F3 => "f3",
+            Self::F4 => "f4",
+            Self::F5 => "f5",
+            Self::F6 => "f6",
+            Self::F7 => "f7",
+            Self::F8 => "f8",
+            Self::F9 => "f9",
+            Self::F10 => "f10",
+            Self::F11 => "f11",
+            Self::F12 => "f12",
+            Self::F13 => "f13",
+            Self::F14 => "f14",
+            Self::F15 => "f15",
+            Self::F16 => "f16",
+            Self::F17 => "f17",
+            Self::F18 => "f18",
+            Self::F19 => "f19",
+            Self::F20 => "f20",
 
             // Whitespace / control
             Self::Space => "space",
@@ -437,11 +534,16 @@ impl fmt::Display for Key {
             Self::Slash => "slash",
 
             // Numpad
-            Self::Numpad0 => "numpad0", Self::Numpad1 => "numpad1",
-            Self::Numpad2 => "numpad2", Self::Numpad3 => "numpad3",
-            Self::Numpad4 => "numpad4", Self::Numpad5 => "numpad5",
-            Self::Numpad6 => "numpad6", Self::Numpad7 => "numpad7",
-            Self::Numpad8 => "numpad8", Self::Numpad9 => "numpad9",
+            Self::Numpad0 => "numpad0",
+            Self::Numpad1 => "numpad1",
+            Self::Numpad2 => "numpad2",
+            Self::Numpad3 => "numpad3",
+            Self::Numpad4 => "numpad4",
+            Self::Numpad5 => "numpad5",
+            Self::Numpad6 => "numpad6",
+            Self::Numpad7 => "numpad7",
+            Self::Numpad8 => "numpad8",
+            Self::Numpad9 => "numpad9",
             Self::NumpadAdd => "numpadadd",
             Self::NumpadSubtract => "numpadsubtract",
             Self::NumpadMultiply => "numpadmultiply",
@@ -502,9 +604,7 @@ impl Hotkey {
     pub fn parse(s: &str) -> Result<Self, AwaseError> {
         let trimmed = s.trim();
         if trimmed.is_empty() {
-            return Err(AwaseError::InvalidHotkey(
-                "empty hotkey string".to_string(),
-            ));
+            return Err(AwaseError::InvalidHotkey("empty hotkey string".to_string()));
         }
 
         // Detect skhd format: contains " - " (space-dash-space)
@@ -520,9 +620,7 @@ impl Hotkey {
         let parts: Vec<&str> = s.split('+').map(str::trim).collect();
 
         if parts.is_empty() {
-            return Err(AwaseError::InvalidHotkey(
-                "empty hotkey string".to_string(),
-            ));
+            return Err(AwaseError::InvalidHotkey("empty hotkey string".to_string()));
         }
 
         let mut modifiers = Modifiers::NONE;
@@ -555,9 +653,8 @@ impl Hotkey {
             )));
         };
 
-        let key = Key::parse(key_str).ok_or_else(|| {
-            AwaseError::InvalidHotkey(format!("unknown key: {key_str}"))
-        })?;
+        let key = Key::parse(key_str)
+            .ok_or_else(|| AwaseError::InvalidHotkey(format!("unknown key: {key_str}")))?;
 
         Ok(Self { modifiers, key })
     }
@@ -593,9 +690,7 @@ impl Hotkey {
     pub fn parse_atlas_chord(s: &str) -> Result<Self, AwaseError> {
         let trimmed = s.trim();
         if trimmed.is_empty() {
-            return Err(AwaseError::InvalidHotkey(
-                "empty atlas chord".to_string(),
-            ));
+            return Err(AwaseError::InvalidHotkey("empty atlas chord".to_string()));
         }
         if trimmed.split_whitespace().count() > 1 {
             return Err(AwaseError::InvalidHotkey(format!(
@@ -684,9 +779,8 @@ impl Hotkey {
             }
         }
 
-        let key = Key::parse(key_str).ok_or_else(|| {
-            AwaseError::InvalidHotkey(format!("unknown key: {key_str}"))
-        })?;
+        let key = Key::parse(key_str)
+            .ok_or_else(|| AwaseError::InvalidHotkey(format!("unknown key: {key_str}")))?;
 
         Ok(Self { modifiers, key })
     }
@@ -724,9 +818,8 @@ impl fmt::Display for Hotkey {
 /// drifted.
 #[must_use]
 pub fn atlas_hotkey(chord: &str, intent_label: &str) -> Hotkey {
-    Hotkey::parse_atlas_chord(chord).unwrap_or_else(|e| {
-        panic!("atlas chord {intent_label} = {chord:?} failed to parse: {e}")
-    })
+    Hotkey::parse_atlas_chord(chord)
+        .unwrap_or_else(|e| panic!("atlas chord {intent_label} = {chord:?} failed to parse: {e}"))
 }
 
 /// Sugar over [`atlas_hotkey`] that auto-stringifies the field name
@@ -1162,8 +1255,14 @@ mod tests {
         assert_eq!(Hotkey::parse("cmd+grave").unwrap().key, Key::Grave);
         assert_eq!(Hotkey::parse("cmd+minus").unwrap().key, Key::Minus);
         assert_eq!(Hotkey::parse("cmd+equal").unwrap().key, Key::Equal);
-        assert_eq!(Hotkey::parse("cmd+leftbracket").unwrap().key, Key::LeftBracket);
-        assert_eq!(Hotkey::parse("cmd+rightbracket").unwrap().key, Key::RightBracket);
+        assert_eq!(
+            Hotkey::parse("cmd+leftbracket").unwrap().key,
+            Key::LeftBracket
+        );
+        assert_eq!(
+            Hotkey::parse("cmd+rightbracket").unwrap().key,
+            Key::RightBracket
+        );
         assert_eq!(Hotkey::parse("cmd+backslash").unwrap().key, Key::Backslash);
         assert_eq!(Hotkey::parse("cmd+semicolon").unwrap().key, Key::Semicolon);
         assert_eq!(Hotkey::parse("cmd+quote").unwrap().key, Key::Quote);
@@ -1179,7 +1278,10 @@ mod tests {
             assert_eq!(Hotkey::parse(&s).unwrap().key.to_string(), s);
         }
         assert_eq!(Hotkey::parse("numpadadd").unwrap().key, Key::NumpadAdd);
-        assert_eq!(Hotkey::parse("kp_subtract").unwrap().key, Key::NumpadSubtract);
+        assert_eq!(
+            Hotkey::parse("kp_subtract").unwrap().key,
+            Key::NumpadSubtract
+        );
         assert_eq!(Hotkey::parse("kp_enter").unwrap().key, Key::NumpadEnter);
     }
 
@@ -1196,7 +1298,10 @@ mod tests {
     #[test]
     fn parse_mouse_buttons() {
         assert_eq!(Hotkey::parse("cmd+mouse1").unwrap().key, Key::MouseLeft);
-        assert_eq!(Hotkey::parse("cmd+mouse_right").unwrap().key, Key::MouseRight);
+        assert_eq!(
+            Hotkey::parse("cmd+mouse_right").unwrap().key,
+            Key::MouseRight
+        );
         assert_eq!(Hotkey::parse("mouse3").unwrap().key, Key::MouseMiddle);
         assert_eq!(Hotkey::parse("mouse4").unwrap().key, Key::MouseButton4);
         assert_eq!(Hotkey::parse("mouse5").unwrap().key, Key::MouseButton5);
@@ -1471,8 +1576,14 @@ mod tests {
         // "kp+" cannot be parsed in plus-separated format since + is the delimiter.
         // Use the full name or kp_add alias instead.
         assert_eq!(Hotkey::parse("kp_add").unwrap().key, Key::NumpadAdd);
-        assert_eq!(Hotkey::parse("kp_subtract").unwrap().key, Key::NumpadSubtract);
-        assert_eq!(Hotkey::parse("kp_multiply").unwrap().key, Key::NumpadMultiply);
+        assert_eq!(
+            Hotkey::parse("kp_subtract").unwrap().key,
+            Key::NumpadSubtract
+        );
+        assert_eq!(
+            Hotkey::parse("kp_multiply").unwrap().key,
+            Key::NumpadMultiply
+        );
         assert_eq!(Hotkey::parse("kp_divide").unwrap().key, Key::NumpadDivide);
         assert_eq!(Hotkey::parse("kp_decimal").unwrap().key, Key::NumpadDecimal);
         assert_eq!(Hotkey::parse("kp_enter").unwrap().key, Key::NumpadEnter);
@@ -1509,10 +1620,22 @@ mod tests {
 
     #[test]
     fn parse_brightness_keys() {
-        assert_eq!(Hotkey::parse("brightnessup").unwrap().key, Key::BrightnessUp);
-        assert_eq!(Hotkey::parse("brightness_up").unwrap().key, Key::BrightnessUp);
-        assert_eq!(Hotkey::parse("brightnessdown").unwrap().key, Key::BrightnessDown);
-        assert_eq!(Hotkey::parse("brightness_down").unwrap().key, Key::BrightnessDown);
+        assert_eq!(
+            Hotkey::parse("brightnessup").unwrap().key,
+            Key::BrightnessUp
+        );
+        assert_eq!(
+            Hotkey::parse("brightness_up").unwrap().key,
+            Key::BrightnessUp
+        );
+        assert_eq!(
+            Hotkey::parse("brightnessdown").unwrap().key,
+            Key::BrightnessDown
+        );
+        assert_eq!(
+            Hotkey::parse("brightness_down").unwrap().key,
+            Key::BrightnessDown
+        );
     }
 
     #[test]
@@ -1607,7 +1730,8 @@ mod tests {
 
     #[test]
     fn display_roundtrip_all_modifiers_combined() {
-        let mods = Modifiers::CMD | Modifiers::CTRL | Modifiers::ALT | Modifiers::SHIFT | Modifiers::FN;
+        let mods =
+            Modifiers::CMD | Modifiers::CTRL | Modifiers::ALT | Modifiers::SHIFT | Modifiers::FN;
         let hk = Hotkey::new(mods, Key::A);
         let displayed = hk.display();
         let reparsed = Hotkey::parse(&displayed).unwrap();
@@ -1628,35 +1752,122 @@ mod tests {
     fn key_display_roundtrip_all_keys() {
         // Every Key variant's Display should parse back to the same key
         let all_keys = [
-            Key::A, Key::B, Key::C, Key::D, Key::E, Key::F, Key::G, Key::H,
-            Key::I, Key::J, Key::K, Key::L, Key::M, Key::N, Key::O, Key::P,
-            Key::Q, Key::R, Key::S, Key::T, Key::U, Key::V, Key::W, Key::X,
-            Key::Y, Key::Z,
-            Key::Num0, Key::Num1, Key::Num2, Key::Num3, Key::Num4,
-            Key::Num5, Key::Num6, Key::Num7, Key::Num8, Key::Num9,
-            Key::F1, Key::F2, Key::F3, Key::F4, Key::F5, Key::F6,
-            Key::F7, Key::F8, Key::F9, Key::F10, Key::F11, Key::F12,
-            Key::F13, Key::F14, Key::F15, Key::F16, Key::F17, Key::F18,
-            Key::F19, Key::F20,
-            Key::Space, Key::Return, Key::Escape, Key::Tab, Key::Backspace,
+            Key::A,
+            Key::B,
+            Key::C,
+            Key::D,
+            Key::E,
+            Key::F,
+            Key::G,
+            Key::H,
+            Key::I,
+            Key::J,
+            Key::K,
+            Key::L,
+            Key::M,
+            Key::N,
+            Key::O,
+            Key::P,
+            Key::Q,
+            Key::R,
+            Key::S,
+            Key::T,
+            Key::U,
+            Key::V,
+            Key::W,
+            Key::X,
+            Key::Y,
+            Key::Z,
+            Key::Num0,
+            Key::Num1,
+            Key::Num2,
+            Key::Num3,
+            Key::Num4,
+            Key::Num5,
+            Key::Num6,
+            Key::Num7,
+            Key::Num8,
+            Key::Num9,
+            Key::F1,
+            Key::F2,
+            Key::F3,
+            Key::F4,
+            Key::F5,
+            Key::F6,
+            Key::F7,
+            Key::F8,
+            Key::F9,
+            Key::F10,
+            Key::F11,
+            Key::F12,
+            Key::F13,
+            Key::F14,
+            Key::F15,
+            Key::F16,
+            Key::F17,
+            Key::F18,
+            Key::F19,
+            Key::F20,
+            Key::Space,
+            Key::Return,
+            Key::Escape,
+            Key::Tab,
+            Key::Backspace,
             Key::Delete,
-            Key::Up, Key::Down, Key::Left, Key::Right,
-            Key::Home, Key::End, Key::PageUp, Key::PageDown,
-            Key::Grave, Key::Minus, Key::Equal, Key::LeftBracket,
-            Key::RightBracket, Key::Backslash, Key::Semicolon, Key::Quote,
-            Key::Comma, Key::Period, Key::Slash,
-            Key::Numpad0, Key::Numpad1, Key::Numpad2, Key::Numpad3,
-            Key::Numpad4, Key::Numpad5, Key::Numpad6, Key::Numpad7,
-            Key::Numpad8, Key::Numpad9,
-            Key::NumpadAdd, Key::NumpadSubtract, Key::NumpadMultiply,
-            Key::NumpadDivide, Key::NumpadDecimal, Key::NumpadEnter,
-            Key::VolumeUp, Key::VolumeDown, Key::Mute,
-            Key::BrightnessUp, Key::BrightnessDown,
-            Key::PlayPause, Key::NextTrack, Key::PreviousTrack,
-            Key::PrintScreen, Key::Insert, Key::Pause,
-            Key::CapsLock, Key::NumLock, Key::ScrollLock,
-            Key::MouseLeft, Key::MouseRight, Key::MouseMiddle,
-            Key::MouseButton4, Key::MouseButton5,
+            Key::Up,
+            Key::Down,
+            Key::Left,
+            Key::Right,
+            Key::Home,
+            Key::End,
+            Key::PageUp,
+            Key::PageDown,
+            Key::Grave,
+            Key::Minus,
+            Key::Equal,
+            Key::LeftBracket,
+            Key::RightBracket,
+            Key::Backslash,
+            Key::Semicolon,
+            Key::Quote,
+            Key::Comma,
+            Key::Period,
+            Key::Slash,
+            Key::Numpad0,
+            Key::Numpad1,
+            Key::Numpad2,
+            Key::Numpad3,
+            Key::Numpad4,
+            Key::Numpad5,
+            Key::Numpad6,
+            Key::Numpad7,
+            Key::Numpad8,
+            Key::Numpad9,
+            Key::NumpadAdd,
+            Key::NumpadSubtract,
+            Key::NumpadMultiply,
+            Key::NumpadDivide,
+            Key::NumpadDecimal,
+            Key::NumpadEnter,
+            Key::VolumeUp,
+            Key::VolumeDown,
+            Key::Mute,
+            Key::BrightnessUp,
+            Key::BrightnessDown,
+            Key::PlayPause,
+            Key::NextTrack,
+            Key::PreviousTrack,
+            Key::PrintScreen,
+            Key::Insert,
+            Key::Pause,
+            Key::CapsLock,
+            Key::NumLock,
+            Key::ScrollLock,
+            Key::MouseLeft,
+            Key::MouseRight,
+            Key::MouseMiddle,
+            Key::MouseButton4,
+            Key::MouseButton5,
         ];
 
         for key in all_keys {
@@ -1782,13 +1993,29 @@ mod tests {
     #[test]
     fn key_serde_roundtrip_all_variants() {
         let keys = [
-            Key::A, Key::Z, Key::Num0, Key::Num9, Key::F1, Key::F20,
-            Key::Space, Key::Return, Key::Escape, Key::Tab,
-            Key::Up, Key::Home, Key::PageDown,
-            Key::Grave, Key::Semicolon, Key::Slash,
-            Key::Numpad0, Key::NumpadEnter,
-            Key::VolumeUp, Key::Mute, Key::PlayPause,
-            Key::MouseLeft, Key::MouseButton5,
+            Key::A,
+            Key::Z,
+            Key::Num0,
+            Key::Num9,
+            Key::F1,
+            Key::F20,
+            Key::Space,
+            Key::Return,
+            Key::Escape,
+            Key::Tab,
+            Key::Up,
+            Key::Home,
+            Key::PageDown,
+            Key::Grave,
+            Key::Semicolon,
+            Key::Slash,
+            Key::Numpad0,
+            Key::NumpadEnter,
+            Key::VolumeUp,
+            Key::Mute,
+            Key::PlayPause,
+            Key::MouseLeft,
+            Key::MouseButton5,
         ];
         for key in keys {
             let json = serde_json::to_string(&key).unwrap();

@@ -15,10 +15,7 @@ pub enum AwaseError {
 
     /// A duplicate binding was detected in the same mode.
     #[error("duplicate binding for {hotkey} in mode '{mode}'")]
-    DuplicateBinding {
-        mode: String,
-        hotkey: String,
-    },
+    DuplicateBinding { mode: String, hotkey: String },
 
     /// Accessibility or input monitoring permissions not granted.
     #[error("permission denied: {0}")]

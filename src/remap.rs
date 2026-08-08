@@ -171,10 +171,19 @@ mod tests {
     fn remap_arrow_keys_via_fn() {
         // Common macOS remap: fn+hjkl -> arrow keys
         let remaps = vec![
-            KeyRemap::new(Hotkey::parse("fn+h").unwrap(), Hotkey::parse("left").unwrap()),
-            KeyRemap::new(Hotkey::parse("fn+j").unwrap(), Hotkey::parse("down").unwrap()),
+            KeyRemap::new(
+                Hotkey::parse("fn+h").unwrap(),
+                Hotkey::parse("left").unwrap(),
+            ),
+            KeyRemap::new(
+                Hotkey::parse("fn+j").unwrap(),
+                Hotkey::parse("down").unwrap(),
+            ),
             KeyRemap::new(Hotkey::parse("fn+k").unwrap(), Hotkey::parse("up").unwrap()),
-            KeyRemap::new(Hotkey::parse("fn+l").unwrap(), Hotkey::parse("right").unwrap()),
+            KeyRemap::new(
+                Hotkey::parse("fn+l").unwrap(),
+                Hotkey::parse("right").unwrap(),
+            ),
         ];
 
         assert_eq!(remaps[0].to.key, Key::Left);

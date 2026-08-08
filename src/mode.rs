@@ -8,6 +8,19 @@ use crate::chord::KeyChord;
 use crate::condition::MatchContext;
 use crate::hotkey::Hotkey;
 
+/// Why a bind was refused.
+///
+/// Two variants, not one string, because the remedy differs: a collision is
+/// the author's to arbitrate, and a reserved chord is not arbitrable at all.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BindRefusal<A> {
+    /// This mode already binds that chord. Carries the incumbent.
+    AlreadyBound(Box<Binding<A>>),
+    /// Something outside the application owns the chord. Carries the
+    /// explanation an operator needs — who took it and what for.
+    Reserved(String),
+}
+
 /// A named keybinding mode with independent binding sets.
 ///
 /// Inspired by skhd's mode system. Modes allow different sets of
@@ -107,6 +120,30 @@ impl<A> KeyMode<A> {
         Ok(())
     }
 
+    /// Bind, refusing both a collision AND a chord the world owns.
+    ///
+    /// The two refusals are DISTINCT variants because the remedy differs. An
+    /// in-app collision means "pick another key or displace this one" — the
+    /// author decides. A reserved chord means the binding would never fire at
+    /// all, because something outside the app consumes the event first, and
+    /// no amount of app-side arbitration changes that.
+    ///
+    /// Collapsing them into one error is how a reserved chord gets treated as
+    /// a merely-unlucky collision and quietly shipped.
+    pub fn bind_available(
+        &mut self,
+        binding: Binding<A>,
+        reserved: &crate::Reserved,
+    ) -> Result<(), BindRefusal<A>>
+    where
+        A: Clone,
+    {
+        if let Some(why) = reserved.refuse(&binding.hotkey) {
+            return Err(BindRefusal::Reserved(why));
+        }
+        self.try_bind(binding).map_err(BindRefusal::AlreadyBound)
+    }
+
     /// Every binding in this mode, in unspecified order.
     ///
     /// The accessor a **derived legend** needs. Without it a help line has to
@@ -137,9 +174,7 @@ impl<A> KeyMode<A> {
     /// Look up a binding for the given hotkey, filtering by context.
     #[must_use]
     pub fn find_binding(&self, hotkey: &Hotkey, ctx: &MatchContext) -> Option<&Binding<A>> {
-        self.bindings
-            .get(hotkey)
-            .filter(|b| b.matches_context(ctx))
+        self.bindings.get(hotkey).filter(|b| b.matches_context(ctx))
     }
 }
 
@@ -245,11 +280,7 @@ impl<A: Clone> BindingMap<A> {
     /// 3. Check if the key is a chord leader
     /// 4. Check current mode bindings
     /// 5. Return NoMatch (passthrough depends on mode setting)
-    pub fn match_key(
-        &mut self,
-        hotkey: Hotkey,
-        ctx: &MatchContext,
-    ) -> MatchResult<A> {
+    pub fn match_key(&mut self, hotkey: Hotkey, ctx: &MatchContext) -> MatchResult<A> {
         // 1. Check remaps
         for remap in &self.remaps {
             if remap.from == hotkey {
@@ -321,12 +352,7 @@ impl<A: Clone> BindingMap<A> {
     pub fn list_bindings(&self) -> Vec<(&Hotkey, &A)> {
         self.modes
             .get(&self.current_mode)
-            .map(|m| {
-                m.bindings
-                    .iter()
-                    .map(|(hk, b)| (hk, &b.action))
-                    .collect()
-            })
+            .map(|m| m.bindings.iter().map(|(hk, b)| (hk, &b.action)).collect())
             .unwrap_or_default()
     }
 
@@ -375,7 +401,10 @@ mod foreign_action_tests {
         ))
         .expect("free hotkey");
 
-        let hit = map.match_key(Hotkey::new(Modifiers::NONE, Key::Q), &MatchContext::default());
+        let hit = map.match_key(
+            Hotkey::new(Modifiers::NONE, Key::Q),
+            &MatchContext::default(),
+        );
         assert_eq!(
             hit,
             MatchResult::Matched {
@@ -385,7 +414,10 @@ mod foreign_action_tests {
             "the app's own enum came back out of the matcher"
         );
 
-        let miss = map.match_key(Hotkey::new(Modifiers::NONE, Key::Z), &MatchContext::default());
+        let miss = map.match_key(
+            Hotkey::new(Modifiers::NONE, Key::Z),
+            &MatchContext::default(),
+        );
         assert_eq!(miss, MatchResult::NoMatch, "and a miss is still a miss");
     }
 
@@ -446,7 +478,11 @@ mod try_bind_and_iter_tests {
             .try_bind(Binding::new(hk(Key::H), Action::command("second")))
             .expect_err("the hotkey is taken");
 
-        assert_eq!(err.action, Action::command("first"), "reports the incumbent");
+        assert_eq!(
+            err.action,
+            Action::command("first"),
+            "reports the incumbent"
+        );
         assert_eq!(m.len(), 1, "nothing was added");
         assert_eq!(
             m.bindings[&hk(Key::H)].action,
@@ -539,11 +575,10 @@ mod tests {
     fn mode_conditional_binding() {
         let mut mode = KeyMode::new("default", true);
         drop(mode.add_binding(
-            Binding::new(cmd_h(), Action::command("focus_west"))
-                .with_condition(crate::Condition {
-                    app_exclude: Some("Terminal".to_string()),
-                    ..Default::default()
-                }),
+            Binding::new(cmd_h(), Action::command("focus_west")).with_condition(crate::Condition {
+                app_exclude: Some("Terminal".to_string()),
+                ..Default::default()
+            }),
         ));
 
         // Should match when not in Terminal
@@ -584,9 +619,11 @@ mod tests {
     #[test]
     fn binding_map_match_in_default_mode() {
         let mut map = BindingMap::new();
-        drop(map.mode_mut("default")
-            .unwrap()
-            .add_binding(Binding::new(cmd_h(), Action::command("focus_west"))));
+        drop(
+            map.mode_mut("default")
+                .unwrap()
+                .add_binding(Binding::new(cmd_h(), Action::command("focus_west"))),
+        );
 
         let result = map.match_key(cmd_h(), &ctx());
         assert_eq!(
@@ -732,10 +769,7 @@ mod tests {
             condition: None,
         });
 
-        let result = map.match_key(
-            Hotkey::new(Modifiers::NONE, Key::CapsLock),
-            &ctx(),
-        );
+        let result = map.match_key(Hotkey::new(Modifiers::NONE, Key::CapsLock), &ctx());
         assert_eq!(
             result,
             MatchResult::Remapped {
@@ -777,12 +811,16 @@ mod tests {
     #[test]
     fn binding_map_list_bindings() {
         let mut map = BindingMap::new();
-        drop(map.mode_mut("default").unwrap().add_binding(
-            Binding::new(cmd_h(), Action::command("a")),
-        ));
-        drop(map.mode_mut("default").unwrap().add_binding(
-            Binding::new(cmd_j(), Action::command("b")),
-        ));
+        drop(
+            map.mode_mut("default")
+                .unwrap()
+                .add_binding(Binding::new(cmd_h(), Action::command("a"))),
+        );
+        drop(
+            map.mode_mut("default")
+                .unwrap()
+                .add_binding(Binding::new(cmd_j(), Action::command("b"))),
+        );
 
         let bindings = map.list_bindings();
         assert_eq!(bindings.len(), 2);
@@ -812,9 +850,11 @@ mod tests {
             to: esc,
             condition: None,
         });
-        drop(map.mode_mut("default")
-            .unwrap()
-            .add_binding(Binding::new(caps, Action::command("should_not_match"))));
+        drop(
+            map.mode_mut("default")
+                .unwrap()
+                .add_binding(Binding::new(caps, Action::command("should_not_match"))),
+        );
 
         // Remap should take priority
         let result = map.match_key(caps, &ctx());
@@ -862,9 +902,11 @@ mod tests {
         let mut map = BindingMap::new();
 
         // Add binding only in default mode
-        drop(map.mode_mut("default")
-            .unwrap()
-            .add_binding(Binding::new(cmd_h(), Action::command("default_action"))));
+        drop(
+            map.mode_mut("default")
+                .unwrap()
+                .add_binding(Binding::new(cmd_h(), Action::command("default_action"))),
+        );
 
         // Add a second mode without that binding
         map.add_mode(KeyMode::new("other", true));
@@ -882,9 +924,9 @@ mod tests {
     #[test]
     fn binding_map_non_consuming_binding() {
         let mut map = BindingMap::new();
-        drop(map.mode_mut("default")
-            .unwrap()
-            .add_binding(Binding::new(cmd_h(), Action::command("passthrough")).with_consume(false)));
+        drop(map.mode_mut("default").unwrap().add_binding(
+            Binding::new(cmd_h(), Action::command("passthrough")).with_consume(false),
+        ));
 
         let result = map.match_key(cmd_h(), &ctx());
         assert_eq!(
@@ -900,11 +942,10 @@ mod tests {
     fn binding_map_conditional_binding_in_mode() {
         let mut map = BindingMap::new();
         drop(map.mode_mut("default").unwrap().add_binding(
-            Binding::new(cmd_h(), Action::command("focus_west"))
-                .with_condition(crate::Condition {
-                    app: Some("Safari".to_string()),
-                    ..Default::default()
-                }),
+            Binding::new(cmd_h(), Action::command("focus_west")).with_condition(crate::Condition {
+                app: Some("Safari".to_string()),
+                ..Default::default()
+            }),
         ));
 
         // Match in Safari
@@ -1023,10 +1064,7 @@ mod tests {
         });
 
         // A different key should not be remapped
-        let result = map.match_key(
-            Hotkey::new(Modifiers::NONE, Key::A),
-            &ctx(),
-        );
+        let result = map.match_key(Hotkey::new(Modifiers::NONE, Key::A), &ctx());
         assert_eq!(result, MatchResult::NoMatch);
     }
 
@@ -1089,9 +1127,11 @@ mod tests {
         let plain_c = Hotkey::new(Modifiers::NONE, Key::C);
 
         // Add a binding for ctrl+a in default mode
-        drop(map.mode_mut("default")
-            .unwrap()
-            .add_binding(Binding::new(ctrl_a, Action::command("select_all"))));
+        drop(
+            map.mode_mut("default")
+                .unwrap()
+                .add_binding(Binding::new(ctrl_a, Action::command("select_all"))),
+        );
 
         // Also add a chord with ctrl+a as leader
         map.add_chord(crate::chord::KeyChord {
