@@ -269,18 +269,14 @@ mod tests {
     #[test]
     fn chords_is_uniform_across_both_bound_shapes() {
         assert_eq!(Gesture::key(Key::Q).chords().len(), 1);
-        assert_eq!(
-            Gesture::seq(EDIT_IN_EDITOR)
-            .chords()
-            .len(),
-            2
-        );
+        assert_eq!(Gesture::seq(EDIT_IN_EDITOR).chords().len(), 2);
     }
 
     #[test]
     fn serializes_to_a_bare_string_not_a_tagged_enum() {
         // Diagnostics print these; a tagged enum would change every one.
-        let j = serde_json::to_string(&Gesture::chord(Modifiers::CTRL, Key::R)).expect("serializes");
+        let j =
+            serde_json::to_string(&Gesture::chord(Modifiers::CTRL, Key::R)).expect("serializes");
         assert_eq!(j, "\"ctrl+r\"");
         let u = serde_json::to_string(&Gesture::Unbound).expect("serializes");
         assert_eq!(u, "\"\"");
@@ -297,11 +293,7 @@ mod tests {
             "ctrl+r"
         );
         // …and `normalize_chord("C-x e")` == "ctrl+x e"
-        assert_eq!(
-            Gesture::seq(EDIT_IN_EDITOR)
-            .to_long_form(),
-            "ctrl+x e"
-        );
+        assert_eq!(Gesture::seq(EDIT_IN_EDITOR).to_long_form(), "ctrl+x e");
     }
 
     #[test]
@@ -328,7 +320,11 @@ mod tests {
             let rendered = g.to_long_form();
             let parsed = Hotkey::parse(&rendered)
                 .unwrap_or_else(|e| panic!("`{rendered}` did not parse back: {e:?}"));
-            assert_eq!(Gesture::Single(parsed), g, "round trip changed `{rendered}`");
+            assert_eq!(
+                Gesture::Single(parsed),
+                g,
+                "round trip changed `{rendered}`"
+            );
         }
     }
 }

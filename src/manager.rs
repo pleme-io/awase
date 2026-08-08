@@ -1,5 +1,5 @@
-use crate::hotkey::Hotkey;
 use crate::AwaseError;
+use crate::hotkey::Hotkey;
 
 /// Trait for platform-specific hotkey registration.
 ///
@@ -69,7 +69,10 @@ mod tests {
         manager.register(1, hk).unwrap();
         let result = manager.register(1, hk);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), AwaseError::AlreadyRegistered(1)));
+        assert!(matches!(
+            result.unwrap_err(),
+            AwaseError::AlreadyRegistered(1)
+        ));
     }
 
     #[test]

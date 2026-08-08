@@ -94,8 +94,7 @@ mod tests {
 
     #[test]
     fn builder_consume() {
-        let b = Binding::new(test_hotkey(), Action::command("focus_west"))
-            .with_consume(false);
+        let b = Binding::new(test_hotkey(), Action::command("focus_west")).with_consume(false);
         assert!(!b.consume);
     }
 
@@ -105,8 +104,8 @@ mod tests {
             app_exclude: Some("com.apple.Terminal".to_string()),
             ..Default::default()
         };
-        let b = Binding::new(test_hotkey(), Action::command("focus_west"))
-            .with_condition(c.clone());
+        let b =
+            Binding::new(test_hotkey(), Action::command("focus_west")).with_condition(c.clone());
         assert_eq!(b.condition, Some(c));
     }
 
@@ -119,11 +118,10 @@ mod tests {
 
     #[test]
     fn matches_context_with_condition() {
-        let b = Binding::new(test_hotkey(), Action::command("test"))
-            .with_condition(Condition {
-                app: Some("Safari".to_string()),
-                ..Default::default()
-            });
+        let b = Binding::new(test_hotkey(), Action::command("test")).with_condition(Condition {
+            app: Some("Safari".to_string()),
+            ..Default::default()
+        });
 
         let ctx_match = MatchContext {
             focused_app_bundle_id: Some("com.apple.Safari".to_string()),
@@ -186,11 +184,10 @@ mod tests {
 
     #[test]
     fn matches_context_app_exclude() {
-        let b = Binding::new(test_hotkey(), Action::command("test"))
-            .with_condition(Condition {
-                app_exclude: Some("Terminal".to_string()),
-                ..Default::default()
-            });
+        let b = Binding::new(test_hotkey(), Action::command("test")).with_condition(Condition {
+            app_exclude: Some("Terminal".to_string()),
+            ..Default::default()
+        });
 
         let ctx_excluded = MatchContext {
             focused_app_bundle_id: Some("com.apple.Terminal".to_string()),
@@ -207,11 +204,10 @@ mod tests {
 
     #[test]
     fn matches_context_display() {
-        let b = Binding::new(test_hotkey(), Action::command("test"))
-            .with_condition(Condition {
-                display: Some(1),
-                ..Default::default()
-            });
+        let b = Binding::new(test_hotkey(), Action::command("test")).with_condition(Condition {
+            display: Some(1),
+            ..Default::default()
+        });
 
         let ctx_match = MatchContext {
             display_index: 1,
@@ -228,11 +224,10 @@ mod tests {
 
     #[test]
     fn matches_context_title() {
-        let b = Binding::new(test_hotkey(), Action::command("test"))
-            .with_condition(Condition {
-                title: Some("Document".to_string()),
-                ..Default::default()
-            });
+        let b = Binding::new(test_hotkey(), Action::command("test")).with_condition(Condition {
+            title: Some("Document".to_string()),
+            ..Default::default()
+        });
 
         let ctx_match = MatchContext {
             focused_window_title: Some("Untitled Document".to_string()),
@@ -271,8 +266,7 @@ mod tests {
 
     #[test]
     fn serde_with_consume_false() {
-        let b = Binding::new(test_hotkey(), Action::command("test"))
-            .with_consume(false);
+        let b = Binding::new(test_hotkey(), Action::command("test")).with_consume(false);
         let json = serde_json::to_string(&b).unwrap();
         let deserialized: Binding = serde_json::from_str(&json).unwrap();
         assert!(!deserialized.consume);
@@ -280,8 +274,8 @@ mod tests {
 
     #[test]
     fn serde_with_all_condition_fields() {
-        let b = Binding::new(test_hotkey(), Action::exec("open -a Safari"))
-            .with_condition(Condition {
+        let b =
+            Binding::new(test_hotkey(), Action::exec("open -a Safari")).with_condition(Condition {
                 app: Some("Browser".to_string()),
                 app_exclude: Some("Firefox".to_string()),
                 title: Some("New Tab".to_string()),

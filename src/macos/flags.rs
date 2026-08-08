@@ -148,10 +148,7 @@ mod tests {
     #[test]
     fn modifiers_to_flags_hyper() {
         let flags = modifiers_to_cg_flags(Modifiers::HYPER);
-        assert_eq!(
-            flags,
-            0x0010_0000 | 0x0004_0000 | 0x0008_0000 | 0x0002_0000
-        );
+        assert_eq!(flags, 0x0010_0000 | 0x0004_0000 | 0x0008_0000 | 0x0002_0000);
     }
 
     // ── Additional flags tests ──────────────────────────────────────

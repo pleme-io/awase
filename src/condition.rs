@@ -174,7 +174,11 @@ mod tests {
         assert!(c.matches(&ctx(Some("com.apple.Safari"), Some("Google Search"), 0)));
         assert!(!c.matches(&ctx(Some("com.apple.Safari"), Some("Google Search"), 1)));
         assert!(!c.matches(&ctx(Some("com.apple.Safari"), Some("Yahoo"), 0)));
-        assert!(!c.matches(&ctx(Some("com.mitchellh.ghostty"), Some("Google Search"), 0)));
+        assert!(!c.matches(&ctx(
+            Some("com.mitchellh.ghostty"),
+            Some("Google Search"),
+            0
+        )));
     }
 
     #[test]
@@ -305,6 +309,10 @@ mod tests {
         // Wrong title
         assert!(!c.matches(&ctx(Some("com.apple.Safari"), Some("Homepage"), 1)));
         // App excluded
-        assert!(!c.matches(&ctx(Some("com.apple.Safari.Private"), Some("Google Search"), 1)));
+        assert!(!c.matches(&ctx(
+            Some("com.apple.Safari.Private"),
+            Some("Google Search"),
+            1
+        )));
     }
 }
