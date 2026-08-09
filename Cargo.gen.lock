@@ -1,12 +1,12 @@
 {
   "schema_version": 2,
-  "cargo_lock_sha256": "93dd82ab11cd8b93f6e474ac73846492e176b00c476fa41f8bafd78ba40dd889",
+  "cargo_lock_sha256": "7d9f45ffab7d278982ef16ba5feac5d7789155f3d7612bc3fd79b119027fa980",
   "manifest_sha256": {
-    "Cargo.toml": "18d743704c1424eaca4f9b3aa7c2b13cdcfbf667d7416b864ade294e48a5def9"
+    "Cargo.toml": "54d788a565be4b74ad804cea05de5099d545cba446dd65445b6acdc77dda5c77"
   },
   "target_resolves": {
     "base": {
-      "awase-0.1.8": {
+      "awase-0.1.9": {
         "runtime_dependencies": [
           {
             "name": "serde",
@@ -527,7 +527,7 @@
     }
   },
   "per_crate": {
-    "awase-0.1.8": {
+    "awase-0.1.9": {
       "edition": "2024",
       "lib_target": {
         "name": "awase",
