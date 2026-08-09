@@ -16,41 +16,58 @@ cargo test           # unit tests + doc-tests
 No app should implement its own hotkey logic — use awase. Platform-agnostic
 core types with feature-gated OS backends.
 
-### Current Module Map
+### Module Map
+
+**One table, and every row is SHIPPED.** This section used to be two — a
+"Current Module Map" of four files and a "Target Module Map (after
+enrichment)" holding everything else — long after the enrichment landed. The
+split was not a harmless stale doc: four lines above it this file says *"No
+app should implement its own hotkey logic — use awase"*, and the table
+immediately under that rule said the binding layer did not exist yet. An agent
+that did the reuse recon correctly, found awase, and opened this file was told
+in writing to go build its own.
+
+escriba did exactly that, and paid for it (see the `banzuke` section below).
+So: a row here means it exists today. Anything unbuilt goes under **Absent**,
+never into a second table that reads like an inventory.
 
 | Path | Purpose |
 |------|---------|
 | `src/lib.rs` | Re-exports |
-| `src/hotkey.rs` | `Hotkey`, `Key`, `Modifiers` — parsing and display (14 tests) |
-| `src/manager.rs` | `HotkeyManager` trait + `NoopManager` stub (4 tests) |
-| `src/error.rs` | `AwaseError` — invalid/duplicate/platform/permission errors |
-
-### Target Module Map (after enrichment)
-
-| Path | Purpose |
-|------|---------|
-| `src/lib.rs` | Re-exports |
-| `src/hotkey.rs` | `Hotkey`, `Key`, `Modifiers` — all keys, modifiers, parsing |
-| `src/mode.rs` | `KeyMode`, `BindingMap` — mode system with passthrough control |
-| `src/chord.rs` | `KeyChord`, `ChordState` — multi-step key sequences |
-| `src/condition.rs` | `Condition` — per-app, per-title, per-display filters |
+| `src/hotkey.rs` | `Hotkey`, `Key`, `Modifiers` — all keys, modifiers, parsing, display |
+| `src/gesture.rs` | `Gesture` — a chord as a `const`-constructible VALUE |
+| `src/binding.rs` | `Binding<A>` — hotkey + action + consume + condition, generic over the app's own action type |
+| `src/action.rs` | `Action` — command, mode switch, exec, script, chain (the DEFAULT vocabulary, not the required one) |
+| `src/condition.rs` | `Condition`, `MatchContext` — per-app, per-title, per-display filters |
+| `src/mode.rs` | `KeyMode<A>`, `BindingMap<A>`, `MatchResult`, `BindRefusal` — the mode system and the dispatch table |
+| `src/chord.rs` | `KeyChord<A>`, `ChordState` — multi-step key sequences |
 | `src/remap.rs` | `KeyRemap` — key-to-key remapping |
-| `src/action.rs` | `Action` — command, mode switch, exec, script, chain |
-| `src/binding.rs` | `Binding`, `BindingConfig` — complete binding with conditions |
-| `src/conflict.rs` | `ConflictReport`, `ConflictEntry` — conflict detection |
+| `src/conflict.rs` | `ConflictReport`, `detect_conflicts`, `detect_duplicate_bindings` — two of MY bindings colliding |
+| `src/reserved.rs` | `Reserved`, `Owner`, `Claim` — chords the WORLD owns |
 | `src/provenance.rs` | `Rank`, `Source`, `Origin` — WHO declared a binding |
-| `src/banzuke.rs` | `Banzuke`, `Declaration`, `Holding` — the ranked chart that ADJUDICATES collisions |
-| `src/synth.rs` | `send_key_event()`, `type_text()` — synthesized key events |
+| `src/banzuke.rs` | `Banzuke`, `Declaration`, `Holding` — the ranked chart that ADJUDICATES a collision |
+| `src/repeat_gate.rs` | `KeyRepeatGate<K>` — per-key debounce, lifted out of mado |
 | `src/manager.rs` | `HotkeyManager` trait + `NoopManager` |
-| `src/macos/mod.rs` | `CgEventTapManager` — macOS CGEventTap backend |
-| `src/macos/keycode.rs` | `key_to_macos_keycode()`, `macos_keycode_to_key()` |
-| `src/macos/flags.rs` | `cg_flags_to_modifiers()` |
-| `src/macos/permissions.rs` | `check_permissions()` — AXIsProcessTrusted |
+| `src/macos/mod.rs` | macOS backend |
+| `src/macos/keycode.rs` | `key_to_keycode`, `keycode_to_key` |
+| `src/macos/flags.rs` | `cg_flags_to_modifiers`, `modifiers_to_cg_flags` |
 | `src/error.rs` | `AwaseError` |
+
+353 unit tests + 7 doc-tests, all green.
+
+### Absent
+
+Named here so the gap is visible without a second table that reads like an
+inventory of things that exist:
+
+| Path | What it would carry |
+|------|---------------------|
+| `src/synth.rs` | `send_key_event()`, `type_text()` — synthesized key events |
+| `src/macos/permissions.rs` | `check_permissions()` — AXIsProcessTrusted |
 
 ## Key Types
 
-### Hotkey (exists — no changes needed)
+### Hotkey (shipped)
 
 ```rust
 pub struct Hotkey {
@@ -62,7 +79,7 @@ pub struct Hotkey {
 Parse: `"cmd+space"`, `"ctrl+alt+shift+k"`, `"f5"`, `"escape"`.
 Also support skhd format: `"cmd - h"` (spaces around `-`).
 
-### Modifiers (exists — needs enrichment)
+### Modifiers (shipped)
 
 ```rust
 pub struct Modifiers(u8);  // → u16 if needed
@@ -76,7 +93,7 @@ Modifiers::HYPER      // Cmd+Ctrl+Alt+Shift combo (convenience alias)
 Modifiers::CAPS_LOCK  // Caps Lock as modifier
 ```
 
-### Key (exists — needs enrichment)
+### Key (shipped)
 
 Current: A-Z, 0-9, F1-F12, Space, Return, Escape, Tab, Backspace, Delete,
 Up, Down, Left, Right.
@@ -119,6 +136,15 @@ Key::MouseButton4, Key::MouseButton5,
 ```
 
 ## Feature Spec
+
+> **Everything in this section is SHIPPED.** It reads as a forward-looking
+> spec because it was written as one; it is kept for the DESIGN RATIONALE
+> (why the mode system is skhd-shaped, why chords carry a timeout, why
+> conditions exist), not as a backlog. Cross-check any "will"/"add" phrasing
+> against the Module Map above — that table is the inventory, this section is
+> the reasoning. The two-table failure this file already paid for came from
+> exactly this confusion between a plan and an inventory.
+
 
 ### 1. Mode System (inspired by skhd)
 
