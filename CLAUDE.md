@@ -38,6 +38,8 @@ core types with feature-gated OS backends.
 | `src/action.rs` | `Action` — command, mode switch, exec, script, chain |
 | `src/binding.rs` | `Binding`, `BindingConfig` — complete binding with conditions |
 | `src/conflict.rs` | `ConflictReport`, `ConflictEntry` — conflict detection |
+| `src/provenance.rs` | `Rank`, `Source`, `Origin` — WHO declared a binding |
+| `src/banzuke.rs` | `Banzuke`, `Declaration`, `Holding` — the ranked chart that ADJUDICATES collisions |
 | `src/synth.rs` | `send_key_event()`, `type_text()` — synthesized key events |
 | `src/manager.rs` | `HotkeyManager` trait + `NoopManager` |
 | `src/macos/mod.rs` | `CgEventTapManager` — macOS CGEventTap backend |
@@ -474,3 +476,38 @@ These Nix options generate YAML that awase's `BindingConfig` deserializes.
 - **Serde-friendly** — all config types derive Serialize + Deserialize
 - **Hot-reload compatible** — `load_config()` can be called repeatedly
   as shikumi/ArcSwap detects config file changes
+
+## Report vs. adjudicate — what `banzuke` added (2026-08-09)
+
+`detect_duplicate_bindings` and `try_bind` can see that two declarations want
+one chord. Neither could say which *should* have it: a `Binding` does not know
+where it came from, and `BindRefusal::AlreadyBound` hands back the incumbent
+binding and nothing else. So awase could REPORT a collision and never
+ADJUDICATE one, and every consumer merging declarations from more than one
+source invented its own answer — or, more often, got last-write-wins by
+accident and did not notice.
+
+escriba paid for it: a bundled plugin bound `<C-h>` to a snippet verb no
+subsystem implements, displacing the core backspace binding. The winner was
+decided by the order an array happened to list the plugins in.
+
+Two axes, and the second is the one that matters:
+
+- **`Rank`** is authority to override — `Builtin < Package < Distribution <
+  Operator`. Ordinary config layering.
+- **`Declaration::floor`** is what rank alone gets backwards. Under pure
+  layering a package outranks the builtin layer, so a plugin taking backspace
+  is *correct* — which is exactly how the bug was legal. A floor says "the
+  human may rebind this; nothing that ships in the box may."
+
+`Banzuke` is append-only: `enter` never displaces, the holder is DERIVED at
+read time, and the losers stay on the chart with their origin intact, so
+"which file took my key" is a query rather than something you had to have
+logged. `resolve()` hands back an ordinary `KeyMode`, so the keypress path is
+unchanged — the chart is consulted when ASSEMBLING a keymap, never when
+pressing a key.
+
+`Binding` is deliberately untouched. Its fields are all `pub` and 23
+consumers may construct it as a struct literal, so provenance lives beside it
+in `Declaration` rather than as a field on it — the same additive discipline
+that let `Binding<A>` become generic without breaking anyone.

@@ -29,6 +29,7 @@
 //! ```
 
 pub mod action;
+pub mod banzuke;
 pub mod binding;
 pub mod chord;
 pub mod condition;
@@ -39,6 +40,7 @@ mod hotkey;
 pub mod macos;
 mod manager;
 pub mod mode;
+pub mod provenance;
 pub mod remap;
 pub mod repeat_gate;
 /// Chords the WORLD owns — what no application may bind. Distinct from
@@ -46,6 +48,7 @@ pub mod repeat_gate;
 pub mod reserved;
 
 pub use action::Action;
+pub use banzuke::{Banzuke, Declaration, Holding};
 pub use binding::Binding;
 pub use chord::{ChordState, KeyChord};
 pub use condition::{Condition, MatchContext};
@@ -57,6 +60,7 @@ pub use hotkey::{Hotkey, Key, Modifiers, atlas_hotkey};
 // crate root — `awase::atlas_chord!(kb.copy)` works at any call site
 // without needing the `hotkey::` path qualifier.
 pub use manager::{HotkeyManager, NoopManager};
+pub use provenance::{Origin, Rank, Source};
 pub use mode::{BindRefusal, BindingMap, KeyMode, MatchResult};
 pub use remap::KeyRemap;
 pub use repeat_gate::{DEFAULT_MIN_INTERVAL, KeyRepeatGate};
