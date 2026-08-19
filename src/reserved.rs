@@ -168,6 +168,91 @@ impl Reserved {
         );
         r
     }
+
+    /// The chords a **Linux seat** consumes before any application sees them.
+    ///
+    /// This is the Linux sibling of [`Self::fleet_darwin`], and until it landed
+    /// `fleet_darwin` was the ONLY catalog in the crate — so every Linux
+    /// consumer had no way to ask "is this chord mine to bind?" and the honest
+    /// answer for twelve of them was *no*.
+    ///
+    /// ## Why this one is not merely a courtesy
+    ///
+    /// On darwin a reserved chord costs a feature that silently does nothing.
+    /// On Linux `Ctrl+Alt+F1..F12` is **the escape hatch out of a broken
+    /// graphical session** — the way an operator reaches a text console when
+    /// the compositor is wedged. An application (or a compositor) that binds
+    /// them takes that away, and a machine whose only display is a frozen
+    /// session with no reachable VT is a soft brick recoverable only by power
+    /// cycling it.
+    ///
+    /// ## The nuance, stated because it changes who is responsible
+    ///
+    /// These chords are consumed above the application either way, but by
+    /// *different* things depending on the console's mode, and the distinction
+    /// matters to whoever writes a compositor:
+    ///
+    /// - While the console is in text mode, the **kernel VT subsystem** handles
+    ///   them directly. Nothing above it sees the press.
+    /// - While a compositor holds the VT in graphics mode it has set
+    ///   `KDSKBMODE` to a raw/off mode, so the kernel no longer processes them
+    ///   — and the compositor is therefore **obliged to implement VT switching
+    ///   itself** (`VT_ACTIVATE`). A compositor that simply swallows them has
+    ///   not "reserved" them, it has deleted them.
+    ///
+    /// So for an ordinary application the answer is the same in both modes —
+    /// never bind these — which is what this catalog encodes. A compositor
+    /// consuming this catalog should read it as *"these are the chords I owe
+    /// the operator"*, not as *"these are free for me"*.
+    ///
+    /// ## What is deliberately NOT here
+    ///
+    /// **`Ctrl+Alt+Backspace` is absent, and that is a measurement rather than
+    /// an oversight.** It was the X server's "zap" chord, implemented by the X
+    /// server itself. Under Wayland there is no X server in the path, nothing
+    /// below the compositor consumes it, and claiming it here would assert a
+    /// fact about the machine that is not true — which is precisely the failure
+    /// mode this module exists to prevent. A compositor may *choose* to offer
+    /// it as a kill-session chord; that is a binding it declares, not a claim
+    /// the world makes.
+    #[must_use]
+    pub fn fleet_linux() -> Self {
+        let mut r = Self::new();
+
+        // Ctrl+Alt+F1..F12 — switch virtual terminal. Twelve chords, one
+        // purpose string: `purpose` is `&'static str`, and a per-VT message
+        // would need twelve literals to say the same thing.
+        for key in [
+            Key::F1,
+            Key::F2,
+            Key::F3,
+            Key::F4,
+            Key::F5,
+            Key::F6,
+            Key::F7,
+            Key::F8,
+            Key::F9,
+            Key::F10,
+            Key::F11,
+            Key::F12,
+        ] {
+            r = r.claim(
+                Hotkey::new(Modifiers::CTRL | Modifiers::ALT, key),
+                Owner::OperatingSystem,
+                "switch to another virtual terminal — the escape hatch out of a wedged session",
+            );
+        }
+
+        // Ctrl+Alt+Delete — logind/systemd's reboot path
+        // (`ctrl-alt-del.target`). Genuinely handled below the session.
+        r = r.claim(
+            Hotkey::new(Modifiers::CTRL | Modifiers::ALT, Key::Delete),
+            Owner::OperatingSystem,
+            "systemd's ctrl-alt-del.target — reboot",
+        );
+
+        r
+    }
 }
 
 #[cfg(test)]
@@ -314,5 +399,80 @@ mod binding_refusal {
             .is_ok()
         );
         assert_eq!(m.len(), 1);
+    }
+
+    // ── fleet_linux ────────────────────────────────────────────────────────
+
+    #[test]
+    fn fleet_linux_reserves_every_vt_switch_chord() {
+        let r = Reserved::fleet_linux();
+        for key in [
+            Key::F1, Key::F2, Key::F3, Key::F4, Key::F5, Key::F6,
+            Key::F7, Key::F8, Key::F9, Key::F10, Key::F11, Key::F12,
+        ] {
+            let hk = Hotkey::new(Modifiers::CTRL | Modifiers::ALT, key);
+            assert!(
+                !r.is_available(&hk),
+                "{} must be reserved — it is the escape hatch out of a wedged session",
+                hk.display()
+            );
+        }
+    }
+
+    #[test]
+    fn fleet_linux_reserves_ctrl_alt_delete() {
+        let r = Reserved::fleet_linux();
+        let hk = Hotkey::new(Modifiers::CTRL | Modifiers::ALT, Key::Delete);
+        assert!(!r.is_available(&hk));
+        assert_eq!(r.claim_on(&hk).unwrap().owner, Owner::OperatingSystem);
+    }
+
+    /// Pins a DELIBERATE omission so nobody "completes" the catalog with it.
+    ///
+    /// `Ctrl+Alt+Backspace` was the X server's zap chord, implemented by the X
+    /// server. Under Wayland nothing below the compositor consumes it, so
+    /// claiming it would assert a fact about the machine that is false — the
+    /// exact failure this module exists to prevent.
+    #[test]
+    fn fleet_linux_does_not_claim_ctrl_alt_backspace() {
+        let r = Reserved::fleet_linux();
+        let hk = Hotkey::new(Modifiers::CTRL | Modifiers::ALT, Key::Backspace);
+        assert!(
+            r.is_available(&hk),
+            "Ctrl+Alt+Backspace is an X11-era zap, not a Wayland world-fact"
+        );
+    }
+
+    #[test]
+    fn fleet_linux_counts_thirteen_claims() {
+        // 12 VT switches + ctrl-alt-del. A bare number so that ADDING a claim
+        // is a deliberate edit here rather than a silent widening of what the
+        // fleet tells apps they may not bind.
+        assert_eq!(Reserved::fleet_linux().len(), 13);
+    }
+
+    #[test]
+    fn the_two_catalogs_are_independent() {
+        let linux = Reserved::fleet_linux();
+        let darwin = Reserved::fleet_darwin();
+        // aerospace's alt-h is a darwin window-manager fact and means nothing
+        // on a Linux seat; a Linux VT switch means nothing on darwin.
+        let alt_h = Hotkey::new(Modifiers::ALT, Key::H);
+        assert!(linux.is_available(&alt_h));
+        assert!(!darwin.is_available(&alt_h));
+
+        let vt2 = Hotkey::new(Modifiers::CTRL | Modifiers::ALT, Key::F2);
+        assert!(!linux.is_available(&vt2));
+        assert!(darwin.is_available(&vt2));
+    }
+
+    #[test]
+    fn refuse_explains_a_vt_switch_in_operator_terms() {
+        let r = Reserved::fleet_linux();
+        let hk = Hotkey::new(Modifiers::CTRL | Modifiers::ALT, Key::F1);
+        let why = r.refuse(&hk).expect("a reserved chord must explain itself");
+        assert!(why.contains("the operating system"));
+        assert!(why.contains("virtual terminal"));
+        assert!(why.contains("would never fire"));
     }
 }
