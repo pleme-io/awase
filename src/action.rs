@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// An action to perform when a hotkey is triggered, as an untyped string.
 ///
 /// **Known weak point, kept rather than removed (MODULARIZE-DON'T-DELETE) —
-/// read `theory/QUADRO.md` §T8 before building a new operator surface on it.**
+/// read the rest of this note before building a new operator surface on it.**
 ///
 /// `Command(String)` makes a binding to a *nonexistent* command
 /// representable: it type-checks, it serializes, and it fails silently at
