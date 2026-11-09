@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 /// `#[derive(KindStr)]`) and consumes awase only for `Hotkey`/`Binding`. So
 /// the fleet holds two intent vocabularies and the weaker one is unused.
 ///
-/// Destination (QUADRO §T8): ONE typed intent catalog per app, from which the
+/// Destination: ONE typed intent catalog per app, from which the
 /// enum, palette, binding table, conflict check and docs are all derived —
 /// enabled by `KindStr` emitting `pub const ALL: &[Self]`, a change belonging
 /// in `tatara-rust-derive::KindRoundTripSpec` so every consumer inherits it.
